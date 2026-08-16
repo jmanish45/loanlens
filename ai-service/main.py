@@ -55,5 +55,13 @@ async def startup_event():
     else:
         logger.info(f"✅ Mistral API key configured (model: {settings.mistral_model})")
 
+    if not settings.groq_api_key:
+        logger.warning(
+            "⚠️  GROQ_API_KEY not configured! "
+            "Set it in ai-service/.env for Groq cross-document verification analysis"
+        )
+    else:
+        logger.info(f"✅ Groq API key configured (model: {settings.groq_model})")
+
     logger.info("🚀 LoanLens AI Service started on http://localhost:8000")
     logger.info("📄 API docs: http://localhost:8000/docs")

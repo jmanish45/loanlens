@@ -28,6 +28,30 @@ const checkSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const findingSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      required: true,
+    },
+    severity: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH'],
+      required: true,
+    },
+    explanation: {
+      type: String,
+      required: true,
+    },
+    documents: [
+      {
+        type: String,
+      },
+    ],
+  },
+  { _id: false }
+);
+
 const validationResultSchema = new mongoose.Schema(
   {
     application: {
@@ -38,8 +62,27 @@ const validationResultSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['VERIFIED', 'REVIEW_REQUIRED', 'PENDING_DOCS', 'STALE'],
+      enum: ['CONSISTENT', 'REVIEW_REQUIRED', 'INCOMPLETE', 'VERIFIED', 'PENDING_DOCS', 'STALE'],
       default: 'PENDING_DOCS',
+    },
+    overallSeverity: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH'],
+      default: 'LOW',
+    },
+    summary: {
+      type: String,
+      default: null,
+    },
+    riskLevel: {
+      type: String,
+      enum: ['LOW', 'MEDIUM', 'HIGH'],
+      default: 'LOW',
+    },
+    findings: [findingSchema],
+    recommendedAction: {
+      type: String,
+      default: null,
     },
     checks: [checkSchema],
     validatedAt: {
@@ -61,3 +104,4 @@ validationResultSchema.methods.toJSON = function () {
 const ValidationResult = mongoose.model('ValidationResult', validationResultSchema);
 
 module.exports = ValidationResult;
+

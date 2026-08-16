@@ -1,4 +1,5 @@
 const officerService = require('../services/officerService');
+const validationService = require('../services/validationService');
 const ValidationResult = require('../models/ValidationResult');
 const aiService = require('../services/aiService');
 const Document = require('../models/Document');
@@ -172,8 +173,17 @@ const getApplicationValidation = async (req, res, next) => {
   try {
     const validation = await ValidationResult.findOne({ application: req.params.id });
     if (!validation) {
-      return res.json({ status: 'PENDING_DOCS', checks: [] });
+      return res.json({ status: 'PENDING_DOCS', checks: [], findings: [] });
     }
+    res.json(validation);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const triggerVerification = async (req, res, next) => {
+  try {
+    const validation = await validationService.runValidation(req.params.id);
     res.json(validation);
   } catch (error) {
     next(error);
@@ -193,6 +203,7 @@ module.exports = {
   getDocumentAnalysis,
   triggerReprocess,
   getApplicationValidation,
+  triggerVerification,
   deleteApplication,
   viewDocument,
 };

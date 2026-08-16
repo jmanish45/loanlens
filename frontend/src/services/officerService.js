@@ -29,4 +29,5 @@ export const officerService = {
   reprocessDocument: (docId) => api.post(`/officer/documents/${docId}/reprocess`),
   
   getApplicationValidation: (id) => api.get(`/officer/applications/${id}/validation`),
+  triggerVerification: (id) => api.post(`/officer/applications/${id}/verify`),
 };

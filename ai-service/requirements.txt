@@ -10,5 +10,7 @@ Pillow==11.2.1
 python-dotenv==1.1.0
 langchain-core>=0.3.0
 langchain-mistralai>=0.2.0
+langchain-groq>=0.2.0
+groq>=0.11.0
 pytesseract>=0.3.10
 numpy>=1.26.0

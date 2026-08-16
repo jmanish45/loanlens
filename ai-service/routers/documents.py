@@ -8,10 +8,19 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from typing import Optional
 
 from schemas.common import ProcessingResult, ProcessingStatus, DocumentType
+from schemas.verification import (
+    VerifyApplicationRequest,
+    VerificationAnalysisResult,
+    VerificationStatus,
+    SeverityLevel,
+    RecommendedAction,
+)
 from pydantic import BaseModel
 from services.text_extraction import extract_text, compact_bank_statement
 from services.gemini_gateway import generate, _parse_json_response, get_stats
 from services.mistral_extractor import extract_text_from_pdf_data, extract_structured_data_mistral
+from services.deterministic_validator import run_deterministic_validation
+from services.groq_reasoning import run_groq_reasoning
 
 class TextExtractionResult(BaseModel):
     text: str
@@ -278,6 +287,61 @@ async def process_document_mistral_endpoint(
             file_hash="",
             gemini_calls_made=0,
             document_type_match=False,
+        )
+
+
+@router.post("/verify-application", response_model=VerificationAnalysisResult)
+async def verify_application_endpoint(request: VerifyApplicationRequest):
+    """
+    Run deterministic cross-document validation rules across extracted document data,
+    followed by Groq reasoning analysis to generate the final structured officer assessment.
+    """
+    try:
+        logger.info(f"[Verification Pipeline] Starting validation for application {request.application_id} with {len(request.documents)} documents")
+
+        # Step 1: Python deterministic validation engine
+        checks, overall_status, overall_severity = run_deterministic_validation(
+            applicant_declared=request.applicant_declared or {},
+            documents=request.documents or [],
+        )
+
+        logger.info(f"[Verification Pipeline] Deterministic validation complete: status={overall_status}, severity={overall_severity}, checks={len(checks)}")
+
+        # Step 2: Groq reasoning layer (interprets validation evidence, synthesizes findings)
+        groq_result = run_groq_reasoning(
+            applicant_declared=request.applicant_declared or {},
+            checks=checks,
+            overall_status=overall_status,
+            overall_severity=overall_severity,
+        )
+
+        logger.info(f"[Verification Pipeline] Groq reasoning complete: riskLevel={groq_result.riskLevel}, findings={len(groq_result.findings)}")
+
+        from datetime import datetime, timezone
+
+        return VerificationAnalysisResult(
+            verificationStatus=groq_result.verificationStatus or overall_status,
+            overallSeverity=overall_severity,
+            summary=groq_result.summary,
+            riskLevel=groq_result.riskLevel or overall_severity,
+            findings=groq_result.findings or [],
+            recommendedAction=groq_result.recommendedAction,
+            checks=checks,
+            validatedAt=datetime.now(timezone.utc).isoformat(),
+        )
+
+    except Exception as e:
+        logger.error(f"[Verification Pipeline] Failed for application {request.application_id}: {e}", exc_info=True)
+        from datetime import datetime, timezone
+        return VerificationAnalysisResult(
+            verificationStatus=VerificationStatus.REVIEW_REQUIRED,
+            overallSeverity=SeverityLevel.HIGH,
+            summary=f"Verification encountered an error: {str(e)}",
+            riskLevel=SeverityLevel.HIGH,
+            findings=[],
+            recommendedAction=RecommendedAction.MANUAL_REVIEW,
+            checks=[],
+            validatedAt=datetime.now(timezone.utc).isoformat(),
         )
 
 

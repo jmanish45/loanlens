@@ -12,6 +12,7 @@ const {
   getDocumentAnalysis,
   triggerReprocess,
   getApplicationValidation,
+  triggerVerification,
   deleteApplication,
   viewDocument,
 } = require('../controllers/officerController');
@@ -39,6 +40,7 @@ router.get('/applications/:id/notes', getNotes);
 // Activity & Validation
 router.get('/applications/:id/activity', getActivity);
 router.get('/applications/:id/validation', getApplicationValidation);
+router.post('/applications/:id/verify', triggerVerification);
 
 // Documents
 router.get('/documents/:docId/download', downloadDocument);
