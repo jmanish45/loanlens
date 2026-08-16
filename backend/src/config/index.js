@@ -10,6 +10,7 @@ const config = {
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   jwtSecret: process.env.JWT_SECRET || 'devsecret123',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  aiServiceUrl: process.env.AI_SERVICE_URL || 'http://localhost:8000',
 };
 
 const requiredInProduction = ['MONGODB_URI', 'JWT_SECRET'];

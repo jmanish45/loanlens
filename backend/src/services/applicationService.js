@@ -2,6 +2,7 @@ const LoanApplication = require('../models/LoanApplication');
 const Document = require('../models/Document');
 const ApiError = require('../utils/ApiError');
 const { logActivity } = require('../utils/activityLogger');
+const aiService = require('./aiService');
 
 const createApplication = async (data, userId) => {
   const application = await LoanApplication.create({
@@ -66,6 +67,11 @@ const uploadDocument = async (applicationId, userId, fileData, documentType) => 
     documentType,
     originalName: fileData.originalname,
   });
+
+  // Trigger AI processing asynchronously (fire-and-forget)
+  aiService.processDocument(document._id).catch((err) =>
+    console.error('[AI] Auto-processing failed:', err.message)
+  );
 
   return document;
 };

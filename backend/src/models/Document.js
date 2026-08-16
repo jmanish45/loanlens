@@ -47,6 +47,37 @@ const documentSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    // AI Document Intelligence fields
+    aiProcessing: {
+      status: {
+        type: String,
+        enum: ['pending', 'processing', 'completed', 'failed'],
+        default: 'pending',
+      },
+      predictedType: {
+        type: String,
+        enum: ['PAN', 'AADHAAR', 'SALARY_SLIP', 'BANK_STATEMENT', 'FORM_16', 'ITR', 'OTHER', 'UNKNOWN'],
+        default: null,
+      },
+      confidence: {
+        type: Number,
+        min: 0,
+        max: 1,
+        default: null,
+      },
+      extractedData: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
+      },
+      processedAt: {
+        type: Date,
+        default: null,
+      },
+      processingError: {
+        type: String,
+        default: null,
+      },
+    },
   },
   {
     timestamps: true,

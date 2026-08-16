@@ -7,7 +7,11 @@ const { logActivity } = require('../utils/activityLogger');
 
 const getAllApplications = async (filters = {}) => {
   const query = {};
-  if (filters.status) query.status = filters.status;
+  if (filters.status) {
+    query.status = filters.status;
+  } else {
+    query.status = { $nin: ['draft', 'documents_pending'] };
+  }
   if (filters.loanType) query.loanType = filters.loanType;
 
   return await LoanApplication.find(query)
@@ -138,7 +142,7 @@ const getActivity = async (applicationId) => {
 
 const getDashboardStats = async () => {
   const [total, submitted, underReview, completed, pendingDocs, docsRequired] = await Promise.all([
-    LoanApplication.countDocuments(),
+    LoanApplication.countDocuments({ status: { $nin: ['draft', 'documents_pending'] } }),
     LoanApplication.countDocuments({ status: 'submitted' }),
     LoanApplication.countDocuments({ status: 'under_review' }),
     LoanApplication.countDocuments({ status: { $in: ['approved', 'rejected'] } }),
@@ -146,7 +150,7 @@ const getDashboardStats = async () => {
     LoanApplication.countDocuments({ status: 'documents_required' }),
   ]);
 
-  const recent = await LoanApplication.find()
+  const recent = await LoanApplication.find({ status: { $nin: ['draft', 'documents_pending'] } })
     .populate('applicant', 'name')
     .sort({ createdAt: -1 })
     .limit(5);

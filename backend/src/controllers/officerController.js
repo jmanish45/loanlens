@@ -1,4 +1,6 @@
 const officerService = require('../services/officerService');
+const aiService = require('../services/aiService');
+const Document = require('../models/Document');
 const path = require('path');
 const fs = require('fs');
 
@@ -103,6 +105,43 @@ const getActivity = async (req, res, next) => {
   }
 };
 
+const getDocumentAnalysis = async (req, res, next) => {
+  try {
+    const document = await Document.findById(req.params.docId);
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        documentId: document._id,
+        originalName: document.originalName,
+        documentType: document.documentType,
+        aiProcessing: document.aiProcessing || { status: 'pending' },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const triggerReprocess = async (req, res, next) => {
+  try {
+    const document = await aiService.reprocessDocument(req.params.docId);
+    res.json({
+      success: true,
+      data: {
+        documentId: document._id,
+        aiProcessing: document.aiProcessing,
+      },
+      message: 'Reprocessing triggered',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getApplications,
   getApplication,
@@ -113,4 +152,6 @@ module.exports = {
   addNote,
   getNotes,
   getActivity,
+  getDocumentAnalysis,
+  triggerReprocess,
 };

@@ -18,4 +18,9 @@ export const officerService = {
   getNotes: (id) => api.get(`/officer/applications/${id}/notes`),
 
   getActivity: (id) => api.get(`/officer/applications/${id}/activity`),
+
+  // AI Document Intelligence
+  getDocumentAnalysis: (docId) => api.get(`/officer/documents/${docId}/analysis`),
+
+  reprocessDocument: (docId) => api.post(`/officer/documents/${docId}/reprocess`),
 };

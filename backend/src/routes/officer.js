@@ -9,6 +9,8 @@ const {
   addNote,
   getNotes,
   getActivity,
+  getDocumentAnalysis,
+  triggerReprocess,
 } = require('../controllers/officerController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -36,5 +38,8 @@ router.get('/applications/:id/activity', getActivity);
 // Documents
 router.get('/documents/:docId/download', downloadDocument);
 router.patch('/documents/:docId/review', reviewDocument);
+router.get('/documents/:docId/analysis', getDocumentAnalysis);
+router.post('/documents/:docId/reprocess', triggerReprocess);
 
 module.exports = router;
+

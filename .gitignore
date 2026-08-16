@@ -40,3 +40,13 @@ desktop.ini
 *.swo
 *.local
 .kombai/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+ai-service/venv/
+ai-service/.venv/
+ai-service/.env
+

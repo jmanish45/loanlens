@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, User, FileText, Briefcase, Download, Clock,
   CheckCircle2, XCircle, MessageSquare, Activity as ActivityIcon,
-  Send, AlertTriangle, Eye
+  Send, AlertTriangle, Eye, Brain, RefreshCw, ChevronDown,
+  ChevronUp, Sparkles, Loader2, Zap
 } from 'lucide-react';
 import Card from '../../components/common/Card';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -400,6 +401,44 @@ function InfoRow({ label, value, capitalize }) {
 
 /* ===================== Documents Tab ===================== */
 function DocumentsTab({ app, requiredDocs, missingDocs, onDownload, onReview, reviewSubmitting }) {
+  const [expandedDoc, setExpandedDoc] = useState(null);
+  const [aiData, setAiData] = useState({}); // { docId: { loading, data, error } }
+  const [reprocessing, setReprocessing] = useState({});
+
+  const fetchAiAnalysis = useCallback(async (docId) => {
+    if (aiData[docId]?.data) return; // Already loaded
+    setAiData(prev => ({ ...prev, [docId]: { loading: true, data: null, error: null } }));
+    try {
+      const response = await officerService.getDocumentAnalysis(docId);
+      setAiData(prev => ({ ...prev, [docId]: { loading: false, data: response.data, error: null } }));
+    } catch (err) {
+      setAiData(prev => ({ ...prev, [docId]: { loading: false, data: null, error: err.message } }));
+    }
+  }, [aiData]);
+
+  const handleToggleAi = (docId) => {
+    if (expandedDoc === docId) {
+      setExpandedDoc(null);
+    } else {
+      setExpandedDoc(docId);
+      fetchAiAnalysis(docId);
+    }
+  };
+
+  const handleReprocess = async (docId) => {
+    setReprocessing(prev => ({ ...prev, [docId]: true }));
+    try {
+      await officerService.reprocessDocument(docId);
+      // Clear cached data and refetch after a short delay
+      setAiData(prev => ({ ...prev, [docId]: { loading: true, data: null, error: null } }));
+      setTimeout(() => fetchAiAnalysis(docId), 3000);
+    } catch (err) {
+      alert('Reprocessing failed: ' + err.message);
+    } finally {
+      setReprocessing(prev => ({ ...prev, [docId]: false }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Uploaded Documents */}
@@ -415,74 +454,97 @@ function DocumentsTab({ app, requiredDocs, missingDocs, onDownload, onReview, re
 
         {app.documents.length > 0 ? (
           <div className="space-y-3">
-            {app.documents.map((doc) => (
-              <div key={doc._id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-cream-50 border border-cream-300 rounded-lg hover:border-cream-400 transition-colors gap-3">
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                    doc.status === 'approved' ? 'bg-success-100 text-success-600' :
-                    doc.status === 'rejected' ? 'bg-error-100 text-error-600' :
-                    'bg-accent-100 text-accent-600'
-                  }`}>
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-charcoal-900">{doc.originalName}</p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-xs text-charcoal-500 capitalize">{doc.documentType.replace(/_/g, ' ')}</span>
-                      <span className="text-xs text-charcoal-300">•</span>
-                      <span className="text-xs text-charcoal-500">{(doc.size / 1024 / 1024).toFixed(2)} MB</span>
-                      <span className="text-xs text-charcoal-300">•</span>
-                      <span className="text-xs text-charcoal-500">{new Date(doc.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                    </div>
-                    {doc.status === 'rejected' && doc.reviewComment && (
-                      <p className="text-xs text-error-600 mt-1.5 flex items-start gap-1">
-                        <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                        {doc.reviewComment}
-                      </p>
-                    )}
-                  </div>
-                </div>
+            {app.documents.map((doc) => {
+              const isExpanded = expandedDoc === doc._id;
+              const ai = aiData[doc._id];
+              const aiStatus = doc.aiProcessing?.status || ai?.data?.aiProcessing?.status || 'pending';
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* Status indicator */}
-                  {doc.status === 'approved' && (
-                    <span className="text-xs font-medium text-success-600 bg-success-50 px-2 py-1 rounded-full flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Approved
-                    </span>
-                  )}
-                  {doc.status === 'rejected' && (
-                    <span className="text-xs font-medium text-error-600 bg-error-50 px-2 py-1 rounded-full flex items-center gap-1">
-                      <XCircle className="w-3 h-3" /> Rejected
-                    </span>
-                  )}
-                  {doc.status === 'pending_review' && (
-                    <>
+              return (
+                <div key={doc._id} className="bg-cream-50 border border-cream-300 rounded-lg hover:border-cream-400 transition-colors overflow-hidden">
+                  {/* Document row */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                        doc.status === 'approved' ? 'bg-success-100 text-success-600' :
+                        doc.status === 'rejected' ? 'bg-error-100 text-error-600' :
+                        'bg-accent-100 text-accent-600'
+                      }`}>
+                        <FileText className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-charcoal-900">{doc.originalName}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-xs text-charcoal-500 capitalize">{doc.documentType.replace(/_/g, ' ')}</span>
+                          <span className="text-xs text-charcoal-300">•</span>
+                          <span className="text-xs text-charcoal-500">{(doc.size / 1024 / 1024).toFixed(2)} MB</span>
+                          <span className="text-xs text-charcoal-300">•</span>
+                          <span className="text-xs text-charcoal-500">{new Date(doc.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                          {/* AI status mini badge */}
+                          <AiStatusMini status={aiStatus} />
+                        </div>
+                        {doc.status === 'rejected' && doc.reviewComment && (
+                          <p className="text-xs text-error-600 mt-1.5 flex items-start gap-1">
+                            <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                            {doc.reviewComment}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {doc.status === 'approved' && (
+                        <span className="text-xs font-medium text-success-600 bg-success-50 px-2 py-1 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Approved
+                        </span>
+                      )}
+                      {doc.status === 'rejected' && (
+                        <span className="text-xs font-medium text-error-600 bg-error-50 px-2 py-1 rounded-full flex items-center gap-1">
+                          <XCircle className="w-3 h-3" /> Rejected
+                        </span>
+                      )}
+                      {doc.status === 'pending_review' && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => onReview(doc._id, 'approved')} disabled={reviewSubmitting} className="text-success-600 hover:bg-success-50">
+                            <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => onReview(doc._id, 'rejected')} disabled={reviewSubmitting} className="text-error-600 hover:bg-error-50">
+                            <XCircle className="w-4 h-4 mr-1" /> Reject
+                          </Button>
+                        </>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => onDownload(doc._id, doc.originalName)}>
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      {/* AI Analysis toggle */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => onReview(doc._id, 'approved')}
-                        disabled={reviewSubmitting}
-                        className="text-success-600 hover:bg-success-50"
+                        onClick={() => handleToggleAi(doc._id)}
+                        className="text-ai-600 hover:bg-ai-50"
                       >
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Approve
+                        <Brain className="w-4 h-4 mr-1" />
+                        AI
+                        {isExpanded ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onReview(doc._id, 'rejected')}
-                        disabled={reviewSubmitting}
-                        className="text-error-600 hover:bg-error-50"
-                      >
-                        <XCircle className="w-4 h-4 mr-1" /> Reject
-                      </Button>
-                    </>
+                    </div>
+                  </div>
+
+                  {/* AI Analysis Panel (expandable) */}
+                  {isExpanded && (
+                    <AiAnalysisPanel
+                      doc={doc}
+                      ai={ai}
+                      reprocessing={reprocessing[doc._id]}
+                      onReprocess={() => handleReprocess(doc._id)}
+                      onRefresh={() => {
+                        setAiData(prev => ({ ...prev, [doc._id]: undefined }));
+                        fetchAiAnalysis(doc._id);
+                      }}
+                    />
                   )}
-                  <Button variant="ghost" size="sm" onClick={() => onDownload(doc._id, doc.originalName)}>
-                    <Download className="w-4 h-4" />
-                  </Button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12 bg-cream-50 rounded-lg border border-dashed border-cream-300">
@@ -516,6 +578,264 @@ function DocumentsTab({ app, requiredDocs, missingDocs, onDownload, onReview, re
     </div>
   );
 }
+
+/* ===================== AI Mini Status Badge ===================== */
+function AiStatusMini({ status }) {
+  const config = {
+    pending: { icon: Clock, label: 'AI Pending', className: 'text-charcoal-400 bg-cream-200' },
+    processing: { icon: Loader2, label: 'AI Processing', className: 'text-ai-600 bg-ai-50 animate-ai-pulse' },
+    completed: { icon: Sparkles, label: 'AI Done', className: 'text-ai-600 bg-ai-100' },
+    failed: { icon: AlertTriangle, label: 'AI Failed', className: 'text-error-600 bg-error-50' },
+  };
+  const c = config[status] || config.pending;
+  const Icon = c.icon;
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${c.className}`}>
+      <Icon className={`w-2.5 h-2.5 ${status === 'processing' ? 'animate-spin' : ''}`} />
+      {c.label}
+    </span>
+  );
+}
+
+/* ===================== AI Analysis Panel ===================== */
+function AiAnalysisPanel({ doc, ai, reprocessing, onReprocess, onRefresh }) {
+  const aiProcessing = ai?.data?.aiProcessing || doc.aiProcessing || {};
+  const isLoading = ai?.loading;
+  const error = ai?.error;
+  const status = aiProcessing.status || 'pending';
+
+  // Type label mapping
+  const typeLabels = {
+    PAN: 'PAN Card',
+    AADHAAR: 'Aadhaar Card',
+    SALARY_SLIP: 'Salary Slip',
+    BANK_STATEMENT: 'Bank Statement',
+    FORM_16: 'Form 16',
+    ITR: 'Income Tax Return',
+    OTHER: 'Other Document',
+    UNKNOWN: 'Unknown',
+  };
+
+  // Check if AI predicted type differs from user-selected type
+  const userType = doc.documentType?.toUpperCase().replace(/ /g, '_');
+  const aiType = aiProcessing.predictedType;
+  const typeMismatch = aiType && userType && aiType !== userType &&
+    aiType !== 'OTHER' && aiType !== 'UNKNOWN';
+
+  return (
+    <div className="border-t border-cream-300 bg-ai-50/40 p-4 animate-fade-in">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold text-ai-700 flex items-center gap-2">
+          <Brain className="w-4 h-4" /> AI Document Analysis
+        </h4>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onRefresh}
+            className="text-xs text-charcoal-500 hover:text-charcoal-700 flex items-center gap-1 transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" /> Refresh
+          </button>
+          <button
+            onClick={onReprocess}
+            disabled={reprocessing}
+            className="text-xs font-medium text-ai-600 hover:text-ai-700 bg-ai-100 hover:bg-ai-100/80 px-2.5 py-1 rounded-md flex items-center gap-1 transition-colors disabled:opacity-50"
+          >
+            {reprocessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+            {reprocessing ? 'Reprocessing...' : 'Reprocess'}
+          </button>
+        </div>
+      </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="animate-shimmer rounded-lg p-6 text-center">
+          <Loader2 className="w-5 h-5 text-ai-500 animate-spin mx-auto mb-2" />
+          <p className="text-xs text-ai-600">Loading AI analysis...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="bg-error-50 border border-error-100 rounded-lg p-4 text-center">
+          <AlertTriangle className="w-5 h-5 text-error-500 mx-auto mb-2" />
+          <p className="text-xs text-error-600">{error}</p>
+        </div>
+      )}
+
+      {/* Pending / Processing State */}
+      {!isLoading && !error && (status === 'pending' || status === 'processing') && (
+        <div className={`rounded-lg p-6 text-center border border-dashed ${status === 'processing' ? 'border-ai-400 bg-ai-50 animate-ai-pulse' : 'border-cream-300 bg-cream-50'}`}>
+          {status === 'processing' ? (
+            <>
+              <Loader2 className="w-6 h-6 text-ai-500 animate-spin mx-auto mb-2" />
+              <p className="text-sm font-medium text-ai-700">AI is processing this document...</p>
+              <p className="text-xs text-ai-500 mt-1">Classification and extraction in progress</p>
+            </>
+          ) : (
+            <>
+              <Clock className="w-6 h-6 text-charcoal-300 mx-auto mb-2" />
+              <p className="text-sm font-medium text-charcoal-600">Awaiting AI processing</p>
+              <p className="text-xs text-charcoal-400 mt-1">Processing will begin automatically</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Failed State */}
+      {!isLoading && !error && status === 'failed' && (
+        <div className="bg-error-50 border border-error-100 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <XCircle className="w-5 h-5 text-error-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-error-700">Processing Failed</p>
+              {aiProcessing.processingError && (
+                <p className="text-xs text-error-600 mt-1">{aiProcessing.processingError}</p>
+              )}
+              <p className="text-xs text-charcoal-500 mt-2">Click "Reprocess" to try again.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Completed State */}
+      {!isLoading && !error && status === 'completed' && (
+        <div className="space-y-3">
+          {/* Classification Result */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-success-500" />
+              <span className="text-sm font-semibold text-charcoal-900">
+                {typeLabels[aiType] || aiType || 'Unknown'}
+              </span>
+            </div>
+            {aiProcessing.confidence != null && (
+              <ConfidenceBadge confidence={aiProcessing.confidence} />
+            )}
+            {typeMismatch && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-warning-50 text-warning-600 text-xs font-medium rounded-full border border-warning-100">
+                <AlertTriangle className="w-3 h-3" />
+                User selected: {doc.documentType.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
+
+          {/* Extracted Data */}
+          {aiProcessing.extractedData && Object.keys(aiProcessing.extractedData).length > 0 && (
+            <ExtractedDataTable data={aiProcessing.extractedData} documentType={aiType} />
+          )}
+
+          {/* Processed timestamp */}
+          {aiProcessing.processedAt && (
+            <p className="text-[10px] text-charcoal-400 mt-2">
+              Processed {new Date(aiProcessing.processedAt).toLocaleString('en-IN', {
+                day: 'numeric', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===================== Confidence Badge ===================== */
+function ConfidenceBadge({ confidence }) {
+  const pct = Math.round(confidence * 100);
+  let color = 'text-success-600 bg-success-50 border-success-100';
+  if (pct < 70) color = 'text-error-600 bg-error-50 border-error-100';
+  else if (pct < 85) color = 'text-warning-600 bg-warning-50 border-warning-100';
+
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full border ${color}`}>
+      {pct}% confidence
+    </span>
+  );
+}
+
+/* ===================== Extracted Data Table ===================== */
+function ExtractedDataTable({ data, documentType }) {
+  // Format field labels nicely
+  const formatLabel = (key) => {
+    return key
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  };
+
+  // Format values
+  const formatValue = (key, value) => {
+    if (value === null || value === undefined) return '—';
+    if (typeof value === 'number') {
+      // Format as currency if it looks like a monetary amount
+      const moneyFields = ['salary', 'amount', 'balance', 'deduction', 'income', 'tax', 'hra', 'pf', 'gross', 'net', 'credit', 'debit', 'exemption', 'refund'];
+      const isMoneyField = moneyFields.some(f => key.toLowerCase().includes(f));
+      if (isMoneyField) {
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(value);
+      }
+      return value.toLocaleString('en-IN');
+    }
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '—';
+      // Render arrays as a compact list
+      return (
+        <div className="space-y-1">
+          {value.slice(0, 5).map((item, idx) => (
+            <div key={idx} className="text-xs bg-cream-100 rounded px-2 py-1">
+              {typeof item === 'object'
+                ? Object.entries(item).filter(([, v]) => v != null).map(([k, v]) => (
+                    <span key={k} className="mr-2">
+                      <span className="text-charcoal-400">{formatLabel(k)}:</span>{' '}
+                      <span className="font-medium">{typeof v === 'number' ? v.toLocaleString('en-IN') : String(v)}</span>
+                    </span>
+                  ))
+                : String(item)
+              }
+            </div>
+          ))}
+          {value.length > 5 && (
+            <p className="text-[10px] text-charcoal-400">+ {value.length - 5} more</p>
+          )}
+        </div>
+      );
+    }
+    return String(value);
+  };
+
+  // Separate scalar fields from array/object fields
+  const entries = Object.entries(data);
+  const scalarEntries = entries.filter(([, v]) => !Array.isArray(v) && typeof v !== 'object');
+  const arrayEntries = entries.filter(([, v]) => Array.isArray(v));
+
+  return (
+    <div className="bg-white border border-cream-200 rounded-lg overflow-hidden">
+      <div className="px-3 py-2 bg-cream-100 border-b border-cream-200">
+        <h5 className="text-xs font-semibold text-charcoal-700 flex items-center gap-1.5">
+          <Sparkles className="w-3 h-3 text-ai-500" /> Extracted Information
+        </h5>
+      </div>
+      <div className="divide-y divide-cream-100">
+        {scalarEntries.map(([key, value]) => (
+          <div key={key} className="flex items-start justify-between px-3 py-2 hover:bg-cream-50 transition-colors">
+            <span className="text-xs text-charcoal-500 shrink-0 w-2/5">{formatLabel(key)}</span>
+            <span className="text-xs font-medium text-charcoal-900 text-right">{formatValue(key, value)}</span>
+          </div>
+        ))}
+      </div>
+      {arrayEntries.length > 0 && (
+        <div className="border-t border-cream-200">
+          {arrayEntries.map(([key, value]) => (
+            <div key={key} className="px-3 py-2">
+              <p className="text-xs text-charcoal-500 mb-1.5">{formatLabel(key)}</p>
+              {formatValue(key, value)}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* ===================== Notes & Activity Tab ===================== */
 function NotesActivityTab({ notes, notesLoading, activity, activityLoading, noteText, setNoteText, addingNote, onAddNote, formatDate }) {
