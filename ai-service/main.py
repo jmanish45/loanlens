@@ -47,5 +47,13 @@ async def startup_event():
     else:
         logger.info(f"✅ Gemini API key configured (model: {settings.gemini_model})")
 
+    if not settings.mistral_api_key:
+        logger.warning(
+            "⚠️  MISTRAL_API_KEY not configured! "
+            "Set it in ai-service/.env for Mistral document extraction"
+        )
+    else:
+        logger.info(f"✅ Mistral API key configured (model: {settings.mistral_model})")
+
     logger.info("🚀 LoanLens AI Service started on http://localhost:8000")
     logger.info("📄 API docs: http://localhost:8000/docs")

@@ -15,7 +15,7 @@ const documentSchema = new mongoose.Schema(
     documentType: {
       type: String,
       required: true,
-      enum: ['salary_slip', 'bank_statement', 'form16', 'pan', 'aadhaar', 'property_document', 'other'],
+      enum: ['payment_slip', 'salary_slip', 'bank_statement', 'form16', 'pan', 'aadhaar', 'property_document', 'other'],
     },
     originalName: {
       type: String,
@@ -47,22 +47,47 @@ const documentSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
-    // AI Document Intelligence fields
-    aiProcessing: {
+    // Local OCR fields
+    ocr: {
+      text: {
+        type: String,
+        default: null,
+      },
+      engine: {
+        type: String,
+        default: null,
+      },
       status: {
         type: String,
         enum: ['pending', 'processing', 'completed', 'failed'],
         default: 'pending',
       },
+      processedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    // AI Document Intelligence fields
+    aiProcessing: {
+      status: {
+        type: String,
+        enum: ['pending', 'processing', 'completed', 'failed', 'retry_pending'],
+        default: 'pending',
+      },
       predictedType: {
         type: String,
-        enum: ['PAN', 'AADHAAR', 'SALARY_SLIP', 'BANK_STATEMENT', 'FORM_16', 'OTHER', 'UNKNOWN'],
+        enum: ['PAN', 'AADHAAR', 'SALARY_SLIP', 'PAYMENT_SLIP', 'BANK_STATEMENT', 'FORM_16', 'OTHER', 'UNKNOWN'],
         default: null,
       },
       confidence: {
         type: Number,
         min: 0,
         max: 1,
+        default: null,
+      },
+      extractionMethod: {
+        type: String,
+        enum: ['native', 'ocr', null],
         default: null,
       },
       extractedData: {
@@ -76,6 +101,27 @@ const documentSchema = new mongoose.Schema(
       processingError: {
         type: String,
         default: null,
+      },
+      // Optimization fields
+      fileHash: {
+        type: String,
+        default: null,
+      },
+      retryCount: {
+        type: Number,
+        default: 0,
+      },
+      promptVersion: {
+        type: String,
+        default: null,
+      },
+      documentTypeMatch: {
+        type: Boolean,
+        default: null,
+      },
+      geminiCallsMade: {
+        type: Number,
+        default: 0,
       },
     },
   },

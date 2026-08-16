@@ -9,7 +9,11 @@ export const officerService = {
 
   updateApplicationStatus: (id, status) => api.patch(`/officer/applications/${id}/status`, { status }),
 
+  deleteApplication: (id) => api.delete(`/officer/applications/${id}`),
+
   downloadDocument: (docId) => api.get(`/officer/documents/${docId}/download`, { responseType: 'blob' }),
+
+  viewDocument: (docId) => api.get(`/officer/documents/${docId}/view`, { responseType: 'blob' }),
 
   reviewDocument: (docId, status, reviewComment) => api.patch(`/officer/documents/${docId}/review`, { status, reviewComment }),
 

@@ -1,5 +1,89 @@
 """LLM prompt templates for document classification and extraction."""
 
+# ---------------------------------------------------------------------------
+# UNIFIED prompts — Classify + Extract in ONE Gemini call
+# ---------------------------------------------------------------------------
+
+UNIFIED_TEXT_PROMPT = """You are a document analysis expert for an Indian loan processing system.
+
+The user uploaded a document that they labeled as: "{expected_type}"
+
+Perform TWO tasks in a SINGLE response:
+
+**Task 1 — Classification**: Determine the actual document type. Valid types:
+- PAN: PAN card (Permanent Account Number)
+- AADHAAR: Aadhaar card (UID)
+- SALARY_SLIP: Monthly salary slip / payslip
+- BANK_STATEMENT: Bank account statement
+- FORM_16: Form 16 (TDS certificate from employer)
+- OTHER: A recognizable document that doesn't fit the above
+- UNKNOWN: Cannot determine
+
+**Task 2 — Data Extraction**: Based on the ACTUAL document type you identified, extract ALL relevant structured data.
+
+Extraction schemas by type:
+- PAN: {{"pan_number","name","fathers_name","date_of_birth"}}
+- AADHAAR: {{"aadhaar_number","name","date_of_birth","gender","address"}}
+- SALARY_SLIP: {{"employee_name","employee_id","employer","designation","salary_month","pay_date","basic_salary","hra","gross_salary","pf","tax_deducted","total_deductions","net_salary","bank_account","pan_number"}}
+- BANK_STATEMENT: {{"account_holder","bank_name","branch","account_number","ifsc_code","account_type","statement_period_from","statement_period_to","opening_balance","closing_balance","total_credits","total_debits","average_balance","salary_credits":[{{"date","description","amount"}}],"emi_debits":[{{"date","description","amount"}}],"transaction_count"}}
+- FORM_16: {{"employee_name","pan_employee","employer_name","tan_employer","assessment_year","financial_year","gross_salary","total_exemptions","net_taxable_salary","total_income","section_80c","section_80d","total_deductions","total_taxable_income","tax_payable","tds_deducted"}}
+- OTHER/UNKNOWN: null
+
+For monetary amounts, use plain numbers without currency symbols or commas.
+Set missing fields to null.
+
+Respond ONLY with valid JSON:
+{{
+  "document_type": "<one of the types above>",
+  "document_type_match": <true if matches expected_type, false otherwise>,
+  "confidence": <float 0.0 to 1.0>,
+  "reasoning": "<brief one-line explanation>",
+  "extracted_data": {{ ... }} or null
+}}
+
+Document text:
+---
+{document_text}
+---"""
+
+
+UNIFIED_VISION_PROMPT = """You are a document analysis expert for an Indian loan processing system.
+
+The user uploaded a document image that they labeled as: "{expected_type}"
+
+Perform THREE tasks in a SINGLE response:
+
+**Task 1 — OCR**: Read ALL text visible in this document image.
+
+**Task 2 — Classification**: Determine the actual document type. Valid types:
+PAN, AADHAAR, SALARY_SLIP, BANK_STATEMENT, FORM_16, OTHER, UNKNOWN
+
+**Task 3 — Data Extraction**: Based on the ACTUAL type, extract structured data.
+
+Extraction schemas:
+- PAN: {{"pan_number","name","fathers_name","date_of_birth"}}
+- AADHAAR: {{"aadhaar_number","name","date_of_birth","gender","address"}}
+- SALARY_SLIP: {{"employee_name","employee_id","employer","designation","salary_month","gross_salary","net_salary"}}
+- BANK_STATEMENT: {{"account_holder","bank_name","account_number"}}
+- FORM_16: {{"employee_name","employer_name","gross_salary","tds_deducted"}}
+- OTHER/UNKNOWN: null
+
+For monetary amounts, use plain numbers. Set missing fields to null.
+
+Respond ONLY with valid JSON:
+{{
+  "document_type": "<type>",
+  "document_type_match": <true/false>,
+  "confidence": <float 0.0 to 1.0>,
+  "reasoning": "<brief explanation>",
+  "extracted_data": {{ ... }} or null
+}}"""
+
+
+# ---------------------------------------------------------------------------
+# Legacy prompts — kept for backward compatibility / individual operations
+# ---------------------------------------------------------------------------
+
 CLASSIFICATION_PROMPT = """You are a document classification expert for an Indian loan processing system.
 
 Analyze the following document text and classify it into EXACTLY ONE of these categories:
@@ -186,4 +270,15 @@ EXTRACTION_PROMPTS = {
     "FORM_16": FORM16_EXTRACTION_PROMPT,
     "PAN": PAN_EXTRACTION_PROMPT,
     "AADHAAR": AADHAAR_EXTRACTION_PROMPT,
+}
+
+# Map frontend document types to AI expected types
+FRONTEND_TO_AI_TYPE = {
+    "pan": "PAN",
+    "aadhaar": "AADHAAR",
+    "salary_slip": "SALARY_SLIP",
+    "bank_statement": "BANK_STATEMENT",
+    "form16": "FORM_16",
+    "property_document": "OTHER",
+    "other": "OTHER",
 }

@@ -4,6 +4,9 @@ const Document = require('../models/Document');
 const { logActivity } = require('../utils/activityLogger');
 const stringSimilarity = require('string-similarity');
 
+// Simple in-memory lock to prevent duplicate concurrent validation runs
+const _validationLocks = new Set();
+
 // Helper to normalize strings for comparison
 const normalizeString = (str) => {
   if (!str) return '';
@@ -18,7 +21,6 @@ const fuzzyMatch = (str1, str2, threshold = 0.8) => {
   if (n1 === n2) return true;
   if (n1.includes(n2) || n2.includes(n1)) return true;
   
-  // Use string-similarity if available, else simple fallback
   if (stringSimilarity) {
     const score = stringSimilarity.compareTwoStrings(n1, n2);
     return score >= threshold;
@@ -36,12 +38,41 @@ const parseAmount = (val) => {
 };
 
 /**
+ * Mark validation as STALE for an application.
+ * Called when a document is replaced or reprocessed.
+ */
+const markStale = async (applicationId) => {
+  try {
+    await ValidationResult.findOneAndUpdate(
+      { application: applicationId },
+      { status: 'STALE' }
+    );
+    console.log(`[Validation] Marked as STALE for application ${applicationId}`);
+  } catch (error) {
+    console.error(`[Validation] Failed to mark stale:`, error.message);
+  }
+};
+
+/**
  * Runs cross-document validation for a loan application.
  * Compares AI-extracted data points across documents.
+ * 
+ * Uses a simple in-memory lock to prevent duplicate concurrent runs
+ * for the same application.
  * 
  * @param {string} applicationId 
  */
 const runValidation = async (applicationId) => {
+  const lockKey = applicationId.toString();
+
+  // Prevent duplicate concurrent runs
+  if (_validationLocks.has(lockKey)) {
+    console.log(`[Validation] Already running for ${applicationId} — skipping duplicate`);
+    return;
+  }
+
+  _validationLocks.add(lockKey);
+
   try {
     const application = await LoanApplication.findById(applicationId).populate('documents');
     if (!application) {
@@ -81,7 +112,7 @@ const runValidation = async (applicationId) => {
         evidence: { declared_monthly: declaredIncome }
       };
 
-      let minExpected = declaredIncome * 0.8; // 20% variance allowed
+      let minExpected = declaredIncome * 0.8;
       let maxExpected = declaredIncome * 1.5;
 
       if (salarySlipData && salarySlipData.net_salary) {
@@ -94,7 +125,6 @@ const runValidation = async (applicationId) => {
       }
 
       if (bankStatementData && bankStatementData.salary_credits && bankStatementData.salary_credits.length > 0) {
-        // Calculate average salary credit
         let total = 0;
         bankStatementData.salary_credits.forEach(c => total += parseAmount(c.amount));
         const avg = total / bankStatementData.salary_credits.length;
@@ -110,7 +140,6 @@ const runValidation = async (applicationId) => {
       if (form16Data && form16Data.gross_salary) {
         const monthlyGross = parseAmount(form16Data.gross_salary) / 12;
         incomeCheck.evidence.form16_monthly_gross = Math.round(monthlyGross);
-        // Form 16 gross will be higher than net, so just check if it's too low
         if (monthlyGross < declaredIncome * 0.9) {
           incomeCheck.status = 'FLAGGED';
           incomeCheck.message = 'Form 16 annualized gross salary is lower than declared monthly income.';
@@ -125,7 +154,6 @@ const runValidation = async (applicationId) => {
     const panData = getFirstData('PAN');
     const aadhaarData = getFirstData('AADHAAR');
     
-    // Collect all names found
     const names = [];
     if (panData && panData.name) names.push({ source: 'PAN', name: panData.name });
     if (aadhaarData && aadhaarData.name) names.push({ source: 'Aadhaar', name: aadhaarData.name });
@@ -180,7 +208,7 @@ const runValidation = async (applicationId) => {
 
       employers.forEach(e => {
         employerCheck.evidence[e.source] = e.name;
-        if (!fuzzyMatch(baseEmp, e.name, 0.6)) { // Lower threshold for employers
+        if (!fuzzyMatch(baseEmp, e.name, 0.6)) {
           empMismatch = true;
         }
       });
@@ -198,7 +226,7 @@ const runValidation = async (applicationId) => {
     if (hasFlagged) {
       overallStatus = 'REVIEW_REQUIRED';
     } else if (checks.some(c => c.status === 'WARNING')) {
-      overallStatus = 'REVIEW_REQUIRED'; // Warnings also require review
+      overallStatus = 'REVIEW_REQUIRED';
     }
 
     // Save or Update ValidationResult
@@ -213,9 +241,8 @@ const runValidation = async (applicationId) => {
       { upsert: true, new: true }
     );
 
-    console.log(`[Validation] Completed for application ${applicationId}. Status: ${overallStatus}`);
+    console.log(`[Validation] ✅ Completed for application ${applicationId}. Status: ${overallStatus}`);
     
-    // Log Activity (only log if it changed or it's a significant run)
     await logActivity(applicationId, null, 'Cross-Document Validation Run', {
       status: overallStatus,
       flaggedCount: checks.filter(c => c.status === 'FLAGGED').length,
@@ -223,9 +250,13 @@ const runValidation = async (applicationId) => {
 
   } catch (error) {
     console.error(`[Validation] Engine failed for application ${applicationId}:`, error);
+  } finally {
+    // Always release the lock
+    _validationLocks.delete(lockKey);
   }
 };
 
 module.exports = {
   runValidation,
+  markStale,
 };

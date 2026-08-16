@@ -9,6 +9,7 @@ class DocumentType(str, Enum):
     PAN = "PAN"
     AADHAAR = "AADHAAR"
     SALARY_SLIP = "SALARY_SLIP"
+    PAYMENT_SLIP = "PAYMENT_SLIP"
     BANK_STATEMENT = "BANK_STATEMENT"
     FORM_16 = "FORM_16"
     OTHER = "OTHER"
@@ -20,6 +21,7 @@ class ProcessingStatus(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    RETRY_PENDING = "retry_pending"
 
 
 class ClassificationResult(BaseModel):
@@ -40,6 +42,16 @@ class ProcessingResult(BaseModel):
     processing_error: Optional[str] = None
     raw_text_preview: Optional[str] = Field(
         default=None, description="First 500 chars of extracted text for debugging"
+    )
+    extraction_method: Optional[str] = Field(
+        default=None, description="Extraction method used: 'native' or 'ocr'"
+    )
+    # Optimization monitoring fields
+    file_hash: Optional[str] = Field(default=None, description="SHA-256 hash of uploaded file")
+    gemini_calls_made: int = Field(default=0, description="Number of Gemini API calls made")
+    retry_count: int = Field(default=0, description="Number of retries due to rate limits")
+    document_type_match: Optional[bool] = Field(
+        default=None, description="Whether AI-predicted type matches expected type"
     )
 
 

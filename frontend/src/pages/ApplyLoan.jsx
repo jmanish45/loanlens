@@ -44,6 +44,7 @@ export default function ApplyLoan() {
   // Step 2 State
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
   const [file, setFile] = useState(null);
+  const [manualText, setManualText] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadedDocs, setUploadedDocs] = useState([]);
   const [uploadSuccessState, setUploadSuccessState] = useState(false);
@@ -91,6 +92,9 @@ export default function ApplyLoan() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('documentType', currentDocType.type);
+      if ((currentDocType.type === 'pan' || currentDocType.type === 'aadhaar') && manualText.trim()) {
+        formData.append('manualText', manualText.trim());
+      }
 
       const response = await applicationService.uploadDocument(applicationId, formData);
       setUploadedDocs([...uploadedDocs, response.data]);
@@ -100,6 +104,7 @@ export default function ApplyLoan() {
       setTimeout(() => {
         setUploadSuccessState(false);
         setFile(null);
+        setManualText('');
         setCurrentDocIndex(prev => prev + 1);
       }, 1500);
 
@@ -312,6 +317,18 @@ export default function ApplyLoan() {
                       </div>
 
                       <form onSubmit={handleFileUpload} className="space-y-6">
+                        {(currentDocType.type === 'pan' || currentDocType.type === 'aadhaar') && (
+                          <div className="bg-accent-50/50 p-4 rounded-xl border border-accent-100/80">
+                            <Input
+                              label={currentDocType.type === 'pan' ? "PAN Card Number (optional)" : "Aadhaar Card Number (optional)"}
+                              value={manualText}
+                              onChange={(e) => setManualText(e.target.value.toUpperCase())}
+                              placeholder={currentDocType.type === 'pan' ? "e.g. ABCDE1234F" : "e.g. 1234 5678 9012"}
+                              helperText={`Upload a digital PDF to auto-extract details, or enter your ${currentDocType.label} number manually.`}
+                            />
+                          </div>
+                        )}
+
                         <div className="relative">
                           <input
                             type="file"
@@ -335,7 +352,11 @@ export default function ApplyLoan() {
                             ) : (
                               <div className="flex flex-col items-center pointer-events-none">
                                 <Upload className="w-10 h-10 text-charcoal-400 mb-3" />
-                                <p className="text-sm font-medium text-charcoal-900">Drag and drop your file here</p>
+                                <p className="text-sm font-medium text-charcoal-900">
+                                  {(currentDocType.type === 'pan' || currentDocType.type === 'aadhaar')
+                                    ? `Upload ${currentDocType.label} copy`
+                                    : 'Drag and drop your file here'}
+                                </p>
                                 <p className="text-sm text-charcoal-500 mt-1">or click to <span className="text-accent-600 font-semibold">browse</span></p>
                                 <p className="text-xs text-charcoal-400 mt-4">PDF, JPEG, PNG • Max 10MB</p>
                               </div>

@@ -7,8 +7,19 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash"
+    mistral_api_key: str = ""
+    mistral_model: str = "mistral-small-2506"
     max_file_size_mb: int = 10
     allowed_extensions: list[str] = [".pdf", ".jpg", ".jpeg", ".png"]
+
+    # Gemini rate-limiting / gateway settings
+    gemini_rpm: int = 10            # requests per minute (free-tier safe)
+    gemini_max_retries: int = 3     # max retries on 429/503
+    gemini_concurrency: int = 1     # concurrent Gemini requests (1 = sequential)
+
+    # Processing settings
+    bank_statement_max_pages: int = 10  # max pages to process for bank statements
+    prompt_version: str = "v2"          # bump this to invalidate caches
 
     class Config:
         env_file = ".env"

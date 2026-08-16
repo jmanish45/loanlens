@@ -41,10 +41,10 @@ const getApplicationByIdAndUser = async (id, userId) => {
   return application;
 };
 
-const uploadDocument = async (applicationId, userId, fileData, documentType) => {
+const uploadDocument = async (applicationId, userId, fileData, documentType, manualText = null) => {
   const application = await getApplicationByIdAndUser(applicationId, userId);
 
-  const document = await Document.create({
+  const docData = {
     application: applicationId,
     uploadedBy: userId,
     documentType,
@@ -53,7 +53,41 @@ const uploadDocument = async (applicationId, userId, fileData, documentType) => 
     path: fileData.path,
     mimetype: fileData.mimetype,
     size: fileData.size,
-  });
+  };
+
+  const isIdentityDoc = documentType === 'pan' || documentType === 'aadhaar';
+
+  if (manualText && manualText.trim()) {
+    const formattedLabel = documentType === 'pan' ? 'PAN Card Number' : documentType === 'aadhaar' ? 'Aadhaar Card Number' : 'Manual Input';
+    const textContent = `${formattedLabel}: ${manualText.trim()}`;
+    
+    docData.ocr = {
+      text: textContent,
+      engine: 'manual_input',
+      status: 'completed',
+      processedAt: new Date(),
+    };
+
+    docData.aiProcessing = {
+      status: 'completed',
+      predictedType: documentType === 'pan' ? 'PAN' : documentType === 'aadhaar' ? 'AADHAAR' : 'OTHER',
+      confidence: 1.0,
+      extractedData: documentType === 'pan' 
+        ? { pan_number: manualText.trim() }
+        : documentType === 'aadhaar' 
+        ? { aadhaar_number: manualText.trim() }
+        : {},
+      processedAt: new Date(),
+      documentTypeMatch: true,
+      geminiCallsMade: 0,
+    };
+  } else if (isIdentityDoc) {
+    // Digital PDF/image — PyMuPDF extraction runs in aiService (no Gemini)
+    docData.ocr = { status: 'pending' };
+    docData.aiProcessing = { status: 'pending' };
+  }
+
+  const document = await Document.create(docData);
 
   application.documents.push(document._id);
   
@@ -66,6 +100,7 @@ const uploadDocument = async (applicationId, userId, fileData, documentType) => 
   await logActivity(applicationId, userId, 'Document Uploaded', {
     documentType,
     originalName: fileData.originalname,
+    hasManualText: Boolean(manualText),
   });
 
   // Trigger AI processing asynchronously (fire-and-forget)

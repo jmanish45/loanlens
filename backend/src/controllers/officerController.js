@@ -51,6 +51,22 @@ const downloadDocument = async (req, res, next) => {
   }
 };
 
+const viewDocument = async (req, res, next) => {
+  try {
+    const document = await officerService.getDocumentForDownload(req.params.docId);
+
+    if (!fs.existsSync(document.path)) {
+      return res.status(404).json({ success: false, message: 'File not found on server' });
+    }
+
+    res.setHeader('Content-Type', document.mimetype);
+    res.setHeader('Content-Disposition', `inline; filename="${document.originalName}"`);
+    res.sendFile(path.resolve(document.path));
+  } catch (error) {
+    next(error);
+  }
+};
+
 const reviewDocument = async (req, res, next) => {
   try {
     const { status, reviewComment } = req.body;
@@ -143,6 +159,15 @@ const triggerReprocess = async (req, res, next) => {
   }
 };
 
+const deleteApplication = async (req, res, next) => {
+  try {
+    await officerService.deleteApplication(req.params.id);
+    res.json({ success: true, message: 'Application deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getApplicationValidation = async (req, res, next) => {
   try {
     const validation = await ValidationResult.findOne({ application: req.params.id });
@@ -168,4 +193,6 @@ module.exports = {
   getDocumentAnalysis,
   triggerReprocess,
   getApplicationValidation,
+  deleteApplication,
+  viewDocument,
 };

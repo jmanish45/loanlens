@@ -38,7 +38,7 @@ const validationResultSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['VERIFIED', 'REVIEW_REQUIRED', 'PENDING_DOCS'],
+      enum: ['VERIFIED', 'REVIEW_REQUIRED', 'PENDING_DOCS', 'STALE'],
       default: 'PENDING_DOCS',
     },
     checks: [checkSchema],

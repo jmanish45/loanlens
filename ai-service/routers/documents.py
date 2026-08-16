@@ -1,114 +1,288 @@
-"""Document processing API router."""
+"""Document processing API router — optimized for minimal Gemini calls."""
 
+import hashlib
+import json
 import logging
 import time
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from typing import Optional
 
 from schemas.common import ProcessingResult, ProcessingStatus, DocumentType
-from services.text_extraction import extract_text
-from services.classification import classify_document
-from services.extraction import extract_structured_data
+from pydantic import BaseModel
+from services.text_extraction import extract_text, compact_bank_statement
+from services.gemini_gateway import generate, _parse_json_response, get_stats
+from services.mistral_extractor import extract_text_from_pdf_data, extract_structured_data_mistral
+
+class TextExtractionResult(BaseModel):
+    text: str
+    has_text: bool
+    page_count: int
+    ocr_engine: Optional[str] = None
+    extraction_method: Optional[str] = None
+    file_hash: str
+    extracted_data: Optional[dict] = None
+    error: Optional[str] = None
+
+class DocumentForAI(BaseModel):
+    document_id: str
+    expected_type: str
+    text: str
+
+class ApplicationProcessRequest(BaseModel):
+    documents: list[DocumentForAI]
+
+class ApplicationProcessResult(BaseModel):
+    documents: list[ProcessingResult]
+    gemini_calls_made: int
+    processing_error: Optional[str] = None
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["documents"])
 
 
-@router.post("/process-document", response_model=ProcessingResult)
-async def process_document(file: UploadFile = File(...)):
-    """Process an uploaded document through the AI pipeline.
+def _compute_file_hash(file_bytes: bytes) -> str:
+    """Compute SHA-256 hash of file contents."""
+    return hashlib.sha256(file_bytes).hexdigest()
 
-    Pipeline:
-    1. Text extraction (PyMuPDF + pdfplumber, or Gemini Vision OCR)
-    2. Document classification (Gemini LLM)
-    3. Structured data extraction (Gemini LLM + Pydantic validation)
 
-    Returns structured processing result.
-    """
-    start_time = time.time()
+def _map_expected_type(expected_type: str | None) -> str:
+    """Map frontend document type names to AI type names."""
+    from utils.prompts import FRONTEND_TO_AI_TYPE
 
-    # Validate file
+    if not expected_type:
+        return "UNKNOWN"
+    return FRONTEND_TO_AI_TYPE.get(expected_type, "OTHER")
+
+
+def _validate_extracted_data(document_type: str, raw_data: dict | None) -> dict | None:
+    """Validate extracted data through Pydantic models."""
+    if not raw_data or not document_type:
+        return raw_data
+
+    try:
+        from schemas.common import DocumentType as DT
+        from services.extraction import EXTRACTION_MODELS
+
+        dt = DT(document_type)
+        model = EXTRACTION_MODELS.get(dt)
+        if model:
+            validated = model(**raw_data)
+            return validated.model_dump(exclude_none=True)
+    except Exception as e:
+        logger.warning(f"Pydantic validation failed, returning raw data: {e}")
+
+    return raw_data
+
+
+@router.post("/extract-text", response_model=TextExtractionResult)
+async def extract_text_endpoint(
+    file: UploadFile = File(...),
+    document_type: Optional[str] = Query(None, description="Expected document type (pan, aadhaar, etc.)"),
+):
+    """Extract raw text locally from a document (PDF via PyMuPDF, images via Tesseract). No Gemini calls."""
     if not file.content_type:
         raise HTTPException(status_code=400, detail="File content type is required")
 
-    allowed_types = ["application/pdf", "image/jpeg", "image/png"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: {file.content_type}. Allowed: {', '.join(allowed_types)}",
+    try:
+        file_bytes = await file.read()
+        file_hash = _compute_file_hash(file_bytes)
+        
+        logger.info(f"Extracting text locally from {file.filename} ({file.content_type}, type={document_type})")
+        extraction_result = extract_text(file_bytes, file.content_type, document_type=document_type)
+
+        extracted_data = None
+        if document_type and document_type.lower() in ("pan", "aadhaar", "aadhar"):
+            from services.identity_parser import parse_identity_text
+            extracted_data = parse_identity_text(document_type, extraction_result.get("text", ""))
+        
+        return TextExtractionResult(
+            text=extraction_result["text"],
+            has_text=extraction_result["has_text"],
+            page_count=extraction_result.get("page_count", 1),
+            ocr_engine=extraction_result.get("ocr_engine", "pymupdf"),
+            file_hash=file_hash,
+            extracted_data=extracted_data,
         )
+    except Exception as e:
+        logger.error(f"Text extraction failed: {e}", exc_info=True)
+        return TextExtractionResult(
+            text="",
+            has_text=False,
+            page_count=0,
+            file_hash="",
+            error=str(e)
+        )
+
+
+@router.post("/process-application", response_model=ApplicationProcessResult)
+async def process_application_endpoint(request: ApplicationProcessRequest):
+    """Process all application documents in a SINGLE consolidated LLM call."""
+    start_time = time.time()
+    
+    if not request.documents:
+        return ApplicationProcessResult(documents=[], gemini_calls_made=0)
 
     try:
-        # Read file bytes
-        file_bytes = await file.read()
-
-        if len(file_bytes) == 0:
-            raise HTTPException(status_code=400, detail="Empty file uploaded")
-
-        logger.info(f"Processing document: {file.filename} ({file.content_type}, {len(file_bytes)} bytes)")
-
-        # Step 1: Text extraction
-        logger.info("Step 1: Extracting text...")
-        extraction_result = extract_text(file_bytes, file.content_type)
-        extracted_text = extraction_result["text"]
-
-        if not extraction_result["has_text"]:
-            logger.warning("No meaningful text could be extracted from the document")
-            return ProcessingResult(
-                document_type=DocumentType.UNKNOWN,
-                confidence=0.0,
-                processing_status=ProcessingStatus.FAILED,
-                extracted_data=None,
-                processing_error="Could not extract meaningful text from the document",
-                raw_text_preview=extracted_text[:500] if extracted_text else None,
+        logger.info(f"Step 2: Consolidated LLM Processing for {len(request.documents)} documents (1 call)...")
+        
+        # Build a massive prompt containing all documents
+        prompt_parts = [
+            "You are an expert loan document analysis AI.",
+            "I will provide you with the OCR text of multiple documents from a single loan application.",
+            "You must analyze EACH document independently.",
+            "Do NOT mix data between documents.",
+            "For each document, determine its true type, and extract structured data based on that type.",
+            "Return a JSON array of objects. Each object MUST have:",
+            '- "document_id": (string, exact ID provided below)',
+            '- "document_type": (string, e.g., PAN, AADHAAR, SALARY_SLIP, BANK_STATEMENT, FORM_16, OTHER)',
+            '- "confidence": (float, 0.0 to 1.0)',
+            '- "document_type_match": (boolean, whether predicted type matches expected_type)',
+            '- "extracted_data": (object, the structured fields for this doc type)',
+            "\n\n--- DOCUMENTS TO PROCESS ---\n"
+        ]
+        
+        for doc in request.documents:
+            # Compact bank statements to save context window
+            text_for_gemini = doc.text
+            if doc.expected_type == "BANK_STATEMENT":
+                text_for_gemini = compact_bank_statement(doc.text, [])
+            else:
+                text_for_gemini = doc.text[:8000] if len(doc.text) > 8000 else doc.text
+                
+            prompt_parts.append(f"\n--- DOCUMENT ID: {doc.document_id} ---")
+            prompt_parts.append(f"Expected Type: {doc.expected_type}")
+            prompt_parts.append(f"Text Content:\n{text_for_gemini}")
+            
+        prompt_parts.append("\n\n--- END OF DOCUMENTS ---")
+        prompt_parts.append("Return ONLY the raw JSON array (no markdown fences).")
+        
+        prompt = "\n".join(prompt_parts)
+        
+        # ONE Gemini Call
+        raw_response = await generate(prompt, purpose=f"consolidated application {len(request.documents)} docs")
+        
+        clean_response = _parse_json_response(raw_response)
+        
+        # Handle cases where Gemini wraps the array in an object
+        result_json = json.loads(clean_response)
+        if isinstance(result_json, dict) and "documents" in result_json:
+            doc_results = result_json["documents"]
+        elif isinstance(result_json, list):
+            doc_results = result_json
+        else:
+            raise ValueError("Unexpected JSON structure from Gemini")
+            
+        processed_docs = []
+        for doc_res in doc_results:
+            doc_id = doc_res.get("document_id")
+            doc_type = doc_res.get("document_type", "UNKNOWN")
+            confidence = min(max(float(doc_res.get("confidence", 0)), 0.0), 1.0)
+            doc_type_match = doc_res.get("document_type_match", None)
+            raw_extracted = doc_res.get("extracted_data", None)
+            
+            validated_data = _validate_extracted_data(doc_type, raw_extracted)
+            
+            # We use ProcessingResult structure but repurpose 'file_hash' to store doc_id for matching
+            res = ProcessingResult(
+                document_type=DocumentType(doc_type),
+                confidence=confidence,
+                processing_status=ProcessingStatus.COMPLETED,
+                extracted_data=validated_data,
+                processing_error=None,
+                file_hash=doc_id, # Using this to map back in Node.js
+                gemini_calls_made=0,
+                document_type_match=doc_type_match
             )
-
-        # Step 2: Classification
-        logger.info("Step 2: Classifying document...")
-        classification = classify_document(
-            text=extracted_text,
-            file_bytes=file_bytes,
-            content_type=file.content_type,
-        )
-        logger.info(
-            f"Classification: {classification.document_type} "
-            f"(confidence: {classification.confidence:.2f}) — {classification.reasoning}"
-        )
-
-        # Step 3: Structured extraction
-        logger.info(f"Step 3: Extracting structured data for {classification.document_type}...")
-        extracted_data = extract_structured_data(
-            document_type=classification.document_type,
-            text=extracted_text,
-        )
-
+            processed_docs.append(res)
+            
         elapsed = time.time() - start_time
-        logger.info(f"Processing complete in {elapsed:.1f}s")
-
-        return ProcessingResult(
-            document_type=classification.document_type,
-            confidence=classification.confidence,
-            processing_status=ProcessingStatus.COMPLETED,
-            extracted_data=extracted_data,
-            processing_error=None,
-            raw_text_preview=extracted_text[:500],
+        logger.info(f"Consolidated processing complete in {elapsed:.1f}s")
+        
+        return ApplicationProcessResult(
+            documents=processed_docs,
+            gemini_calls_made=1
         )
-
-    except HTTPException:
-        raise
+        
     except Exception as e:
         elapsed = time.time() - start_time
-        logger.error(f"Document processing failed after {elapsed:.1f}s: {e}", exc_info=True)
+        error_str = str(e)
+        logger.error(f"Consolidated processing failed after {elapsed:.1f}s: {e}", exc_info=True)
+        return ApplicationProcessResult(
+            documents=[],
+            gemini_calls_made=1,
+            processing_error=error_str
+        )
+
+
+@router.post("/process-document-mistral", response_model=ProcessingResult)
+async def process_document_mistral_endpoint(
+    file: UploadFile = File(...),
+    document_type: str = Query(..., description="Expected document type (payment_slip, salary_slip, bank_statement, form16, pan, aadhaar)"),
+):
+    """
+    Process PDF document using native text layer first, OCR fallback,
+    followed by structured Pydantic extraction with Mistral LLM (mistral-small-2506).
+    """
+    if not file.content_type:
+        raise HTTPException(status_code=400, detail="File content type is required")
+
+    try:
+        file_bytes = await file.read()
+        file_hash = _compute_file_hash(file_bytes)
+
+        logger.info(f"[Mistral Pipeline] Processing {file.filename} ({file.content_type}, type={document_type})")
+
+        # Step 1: Text extraction (Native PyMuPDF first, Tesseract OCR fallback)
+        raw_text, extraction_method = extract_text_from_pdf_data(file_bytes)
+        logger.info(f"[Mistral Pipeline] Extracted {len(raw_text)} chars via {extraction_method}")
+
+        # Step 2: Structured extraction using Mistral LLM
+        extracted_data = extract_structured_data_mistral(document_type, raw_text)
+        logger.info(f"[Mistral Pipeline] Structured extraction complete: {list(extracted_data.keys()) if extracted_data else []}")
+
+        # Map document_type to DocumentType enum
+        doc_type_upper = document_type.upper().replace(" ", "_")
+        try:
+            target_doc_type = DocumentType(doc_type_upper)
+        except ValueError:
+            target_doc_type = DocumentType.OTHER
+
         return ProcessingResult(
-            document_type=DocumentType.UNKNOWN,
+            document_type=target_doc_type,
+            confidence=1.0 if extracted_data else 0.5,
+            processing_status=ProcessingStatus.COMPLETED,
+            extracted_data=extracted_data,
+            raw_text_preview=raw_text[:500] if raw_text else None,
+            extraction_method=extraction_method,
+            file_hash=file_hash,
+            gemini_calls_made=0,
+            document_type_match=True,
+        )
+
+    except Exception as e:
+        logger.error(f"[Mistral Pipeline] Processing failed for {file.filename}: {e}", exc_info=True)
+        doc_type_upper = document_type.upper().replace(" ", "_")
+        try:
+            target_doc_type = DocumentType(doc_type_upper)
+        except ValueError:
+            target_doc_type = DocumentType.OTHER
+
+        return ProcessingResult(
+            document_type=target_doc_type,
             confidence=0.0,
             processing_status=ProcessingStatus.FAILED,
             extracted_data=None,
             processing_error=str(e),
+            extraction_method=None,
+            file_hash="",
+            gemini_calls_made=0,
+            document_type_match=False,
         )
 
 
 @router.get("/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "ok", "service": "loanlens-ai"}
+    stats = get_stats()
+    return {"status": "ok", "service": "loanlens-ai", "gemini_gateway": stats}

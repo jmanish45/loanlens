@@ -44,12 +44,14 @@ const uploadApplicationDocument = async (req, res, next) => {
     }
     
     const documentType = req.body.documentType || 'other';
+    const manualText = req.body.manualText || null;
 
     const document = await applicationService.uploadDocument(
       req.params.id,
       req.user._id,
       req.file,
-      documentType
+      documentType,
+      manualText
     );
 
     res.status(201).json({

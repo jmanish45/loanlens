@@ -54,10 +54,24 @@ const VerificationTab = ({ applicationId }) => {
     );
   }
 
+  if (data.status === 'STALE') {
+    return (
+      <div className="bg-white p-8 rounded-lg shadow-sm border border-yellow-300 text-center text-charcoal-500">
+        <AlertTriangle className="w-10 h-10 mx-auto text-yellow-500 mb-3" />
+        <h3 className="text-lg font-medium text-charcoal-900">Validation Outdated</h3>
+        <p>A document was replaced or reprocessed. Waiting for all documents to finish processing before re-running validation.</p>
+        <button onClick={fetchValidation} className="mt-4 px-4 py-2 bg-yellow-100 rounded text-sm hover:bg-yellow-200">
+          Refresh
+        </button>
+      </div>
+    );
+  }
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'VERIFIED': return 'bg-green-100 text-green-800 border-green-200';
       case 'REVIEW_REQUIRED': return 'bg-red-100 text-red-800 border-red-200';
+      case 'STALE': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       default: return 'bg-charcoal-100 text-charcoal-800 border-charcoal-200';
     }
   };

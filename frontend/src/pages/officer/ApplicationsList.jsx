@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Trash2 } from 'lucide-react';
 import PageHeader from '../../components/layout/PageHeader';
 import Card from '../../components/common/Card';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -35,6 +35,18 @@ export default function ApplicationsList() {
     };
     fetchApplications();
   }, []);
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this application and all associated documents permanently from MongoDB?')) {
+      return;
+    }
+    try {
+      await officerService.deleteApplication(id);
+      setApplications((prev) => prev.filter((app) => app._id !== id));
+    } catch (error) {
+      alert('Failed to delete application: ' + error.message);
+    }
+  };
 
   const filteredApps = applications.filter((app) => {
     const matchesSearch = app.applicant?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || app._id.includes(searchTerm);
@@ -129,9 +141,18 @@ export default function ApplicationsList() {
                     <StatusBadge status={app.status} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link to={`/officer/applications/${app._id}`} className="text-accent-600 hover:text-accent-700 font-medium">
-                      View
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      <Link to={`/officer/applications/${app._id}`} className="text-accent-600 hover:text-accent-700 font-medium">
+                        View
+                      </Link>
+                      <button
+                        onClick={() => handleDelete(app._id)}
+                        className="text-red-600 hover:text-red-700 font-medium p-1 hover:bg-red-50 rounded transition-colors"
+                        title="Delete Application"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )) : (

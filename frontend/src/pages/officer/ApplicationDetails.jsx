@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, User, FileText, Briefcase, Download, Clock,
   CheckCircle2, XCircle, MessageSquare, Activity as ActivityIcon,
   Send, AlertTriangle, Eye, Brain, RefreshCw, ChevronDown,
-  ChevronUp, Sparkles, Loader2, Zap
+  ChevronUp, Sparkles, Loader2, Zap, Trash2, ExternalLink
 } from 'lucide-react';
 import Card from '../../components/common/Card';
 import StatusBadge from '../../components/common/StatusBadge';
@@ -50,6 +50,7 @@ const STATUS_OPTIONS = [
 
 export default function ApplicationDetails() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -69,6 +70,9 @@ export default function ApplicationDetails() {
   const [reviewModal, setReviewModal] = useState(null); // { docId, action }
   const [reviewComment, setReviewComment] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  // Document preview modal
+  const [previewModal, setPreviewModal] = useState(null); // { docId, filename, url, mimetype, loading }
 
   useEffect(() => {
     const fetchApp = async () => {
@@ -129,18 +133,57 @@ export default function ApplicationDetails() {
     }
   };
 
+  const handleDeleteApplication = async () => {
+    if (!window.confirm('Are you sure you want to completely delete this application and all associated documents? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      setUpdating(true);
+      await officerService.deleteApplication(id);
+      navigate('/officer/applications');
+    } catch (error) {
+      alert('Failed to delete application: ' + error.message);
+      setUpdating(false);
+    }
+  };
+
   const handleDownload = async (docId, filename) => {
     try {
-      const response = await officerService.downloadDocument(docId);
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const responseData = await officerService.downloadDocument(docId);
+      const blob = responseData instanceof Blob ? responseData : new Blob([responseData]);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       alert('Failed to download document');
+    }
+  };
+
+  const handleView = async (docId, filename, mimetype) => {
+    try {
+      setPreviewModal({ docId, filename, url: null, mimetype, loading: true });
+      const responseData = await officerService.viewDocument(docId);
+      
+      // Ensure we have a valid Blob with explicit mimetype
+      let blob;
+      if (responseData instanceof Blob) {
+        blob = responseData.type ? responseData : new Blob([responseData], { type: mimetype || 'application/pdf' });
+      } else {
+        blob = new Blob([responseData], { type: mimetype || 'application/pdf' });
+      }
+      
+      const url = window.URL.createObjectURL(blob);
+      setPreviewModal({ docId, filename, url, mimetype: blob.type || mimetype, loading: false });
+    } catch (error) {
+      console.error('Document preview error:', error);
+      alert('Failed to load document preview');
+      setPreviewModal(null);
     }
   };
 
@@ -244,6 +287,15 @@ export default function ApplicationDetails() {
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+          <button
+            onClick={handleDeleteApplication}
+            disabled={updating}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
+            title="Delete Application"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Delete</span>
+          </button>
         </div>
       </div>
 
@@ -273,8 +325,8 @@ export default function ApplicationDetails() {
         </div>
       </div>
 
-      {/* Tab Content */}
-      <div className="animate-fade-in">
+      {/* Active Tab Content */}
+      <div className="mt-6">
         {activeTab === 'overview' && (
           <OverviewTab app={app} formatAmount={formatAmount} formatDate={formatDate} />
         )}
@@ -284,6 +336,7 @@ export default function ApplicationDetails() {
             requiredDocs={requiredDocs}
             missingDocs={missingDocs}
             onDownload={handleDownload}
+            onView={handleView}
             onReview={handleDocumentReview}
             reviewSubmitting={reviewSubmitting}
           />
@@ -338,6 +391,76 @@ export default function ApplicationDetails() {
               >
                 Reject Document
               </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Document Preview Modal */}
+      {previewModal && (
+        <div className="fixed inset-0 bg-charcoal-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <Card className="w-full max-w-5xl h-[88vh] flex flex-col p-6 overflow-hidden shadow-2xl border-cream-300">
+            <div className="flex items-center justify-between pb-4 border-b border-cream-300">
+              <h3 className="text-base font-bold text-charcoal-900 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-accent-600" />
+                {previewModal.filename}
+              </h3>
+              <div className="flex items-center gap-3">
+                {previewModal.url && (
+                  <a
+                    href={previewModal.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-accent-600 hover:text-accent-700 bg-accent-50 px-3 py-1.5 rounded-lg transition-colors border border-accent-200"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Open Fullscreen
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    if (previewModal.url) window.URL.revokeObjectURL(previewModal.url);
+                    setPreviewModal(null);
+                  }}
+                  className="text-charcoal-500 hover:text-charcoal-900 text-sm font-semibold px-3 py-1.5 bg-cream-100 hover:bg-cream-200 rounded-lg transition-colors"
+                >
+                  ✕ Close
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden py-4 flex items-center justify-center bg-charcoal-950/5 rounded-lg mt-3">
+              {previewModal.loading ? (
+                <div className="text-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-accent-600 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-charcoal-600">Loading document preview...</p>
+                </div>
+              ) : previewModal.mimetype?.includes('pdf') || previewModal.filename?.toLowerCase().endsWith('.pdf') ? (
+                <object
+                  data={previewModal.url}
+                  type="application/pdf"
+                  className="w-full h-full rounded-lg"
+                >
+                  <embed src={previewModal.url} type="application/pdf" className="w-full h-full rounded-lg" />
+                  <div className="p-8 text-center bg-white rounded-lg">
+                    <p className="text-sm text-charcoal-600 mb-3">Unable to embed PDF viewer directly in browser.</p>
+                    <a
+                      href={previewModal.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-accent-600 text-white text-sm font-medium rounded-lg hover:bg-accent-700 transition-colors"
+                    >
+                      <ExternalLink className="w-4 h-4" /> Open PDF in New Tab
+                    </a>
+                  </div>
+                </object>
+              ) : (
+                <img
+                  src={previewModal.url}
+                  alt={previewModal.filename}
+                  className="max-w-full max-h-full object-contain rounded-lg shadow-sm"
+                />
+              )}
             </div>
           </Card>
         </div>
@@ -405,7 +528,7 @@ function InfoRow({ label, value, capitalize }) {
 }
 
 /* ===================== Documents Tab ===================== */
-function DocumentsTab({ app, requiredDocs, missingDocs, onDownload, onReview, reviewSubmitting }) {
+function DocumentsTab({ app, requiredDocs, missingDocs, onDownload, onView, onReview, reviewSubmitting }) {
   const [expandedDoc, setExpandedDoc] = useState(null);
   const [aiData, setAiData] = useState({}); // { docId: { loading, data, error } }
   const [reprocessing, setReprocessing] = useState({});
@@ -517,7 +640,10 @@ function DocumentsTab({ app, requiredDocs, missingDocs, onDownload, onReview, re
                           </Button>
                         </>
                       )}
-                      <Button variant="ghost" size="sm" onClick={() => onDownload(doc._id, doc.originalName)}>
+                      <Button variant="ghost" size="sm" onClick={() => onView(doc._id, doc.originalName, doc.mimetype)} title="View / Preview">
+                        <Eye className="w-4 h-4 text-accent-600" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => onDownload(doc._id, doc.originalName)} title="Download">
                         <Download className="w-4 h-4" />
                       </Button>
                       {/* AI Analysis toggle */}
@@ -615,6 +741,7 @@ function AiAnalysisPanel({ doc, ai, reprocessing, onReprocess, onRefresh }) {
     PAN: 'PAN Card',
     AADHAAR: 'Aadhaar Card',
     SALARY_SLIP: 'Salary Slip',
+    PAYMENT_SLIP: 'Payment Slip',
     BANK_STATEMENT: 'Bank Statement',
     FORM_16: 'Form 16',
     OTHER: 'Other Document',
@@ -715,6 +842,11 @@ function AiAnalysisPanel({ doc, ai, reprocessing, onReprocess, onRefresh }) {
             </div>
             {aiProcessing.confidence != null && (
               <ConfidenceBadge confidence={aiProcessing.confidence} />
+            )}
+            {aiProcessing.extractionMethod && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-50 text-accent-700 text-xs font-semibold rounded-full border border-accent-200">
+                {aiProcessing.extractionMethod === 'native' ? '📄 Native Text' : '🔍 OCR Extraction'}
+              </span>
             )}
             {typeMismatch && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-warning-50 text-warning-600 text-xs font-medium rounded-full border border-warning-100">

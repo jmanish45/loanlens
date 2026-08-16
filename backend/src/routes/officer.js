@@ -12,6 +12,8 @@ const {
   getDocumentAnalysis,
   triggerReprocess,
   getApplicationValidation,
+  deleteApplication,
+  viewDocument,
 } = require('../controllers/officerController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -28,6 +30,7 @@ router.get('/dashboard', getDashboardStats);
 router.get('/applications', getApplications);
 router.get('/applications/:id', getApplication);
 router.patch('/applications/:id/status', updateStatus);
+router.delete('/applications/:id', deleteApplication);
 
 // Notes
 router.post('/applications/:id/notes', addNote);
@@ -39,6 +42,7 @@ router.get('/applications/:id/validation', getApplicationValidation);
 
 // Documents
 router.get('/documents/:docId/download', downloadDocument);
+router.get('/documents/:docId/view', viewDocument);
 router.patch('/documents/:docId/review', reviewDocument);
 router.get('/documents/:docId/analysis', getDocumentAnalysis);
 router.post('/documents/:docId/reprocess', triggerReprocess);

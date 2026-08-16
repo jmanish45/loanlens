@@ -2,7 +2,9 @@ const LoanApplication = require('../models/LoanApplication');
 const Document = require('../models/Document');
 const Note = require('../models/Note');
 const Activity = require('../models/Activity');
+const ValidationResult = require('../models/ValidationResult');
 const ApiError = require('../utils/ApiError');
+const fs = require('fs');
 const { logActivity } = require('../utils/activityLogger');
 
 const getAllApplications = async (filters = {}) => {
@@ -140,6 +142,40 @@ const getActivity = async (applicationId) => {
     .sort({ createdAt: -1 });
 };
 
+const deleteApplication = async (applicationId) => {
+  if (!applicationId.match(/^[0-9a-fA-F]{24}$/)) {
+    throw ApiError.badRequest('Invalid application ID format');
+  }
+
+  const application = await LoanApplication.findById(applicationId);
+  if (!application) {
+    throw ApiError.notFound('Application not found');
+  }
+
+  // Find all documents to delete physical files
+  const documents = await Document.find({ application: applicationId });
+  documents.forEach(doc => {
+    try {
+      if (doc.path && fs.existsSync(doc.path)) {
+        fs.unlinkSync(doc.path);
+      }
+    } catch (err) {
+      console.error(`Failed to delete file ${doc.path}:`, err);
+    }
+  });
+
+  // Delete all related records
+  await Document.deleteMany({ application: applicationId });
+  await Note.deleteMany({ application: applicationId });
+  await Activity.deleteMany({ application: applicationId });
+  await ValidationResult.deleteMany({ application: applicationId });
+
+  // Delete the application itself
+  await LoanApplication.findByIdAndDelete(applicationId);
+  
+  return true;
+};
+
 const getDashboardStats = async () => {
   const [total, submitted, underReview, completed, pendingDocs, docsRequired] = await Promise.all([
     LoanApplication.countDocuments({ status: { $nin: ['draft', 'documents_pending'] } }),
@@ -171,4 +207,5 @@ module.exports = {
   getNotes,
   getActivity,
   getDashboardStats,
+  deleteApplication,
 };
