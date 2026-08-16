@@ -15,7 +15,7 @@ const documentSchema = new mongoose.Schema(
     documentType: {
       type: String,
       required: true,
-      enum: ['salary_slip', 'bank_statement', 'itr', 'form16', 'pan', 'aadhaar', 'property_document', 'other'],
+      enum: ['salary_slip', 'bank_statement', 'form16', 'pan', 'aadhaar', 'property_document', 'other'],
     },
     originalName: {
       type: String,
@@ -56,7 +56,7 @@ const documentSchema = new mongoose.Schema(
       },
       predictedType: {
         type: String,
-        enum: ['PAN', 'AADHAAR', 'SALARY_SLIP', 'BANK_STATEMENT', 'FORM_16', 'ITR', 'OTHER', 'UNKNOWN'],
+        enum: ['PAN', 'AADHAAR', 'SALARY_SLIP', 'BANK_STATEMENT', 'FORM_16', 'OTHER', 'UNKNOWN'],
         default: null,
       },
       confidence: {

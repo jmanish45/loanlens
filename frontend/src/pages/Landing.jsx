@@ -35,7 +35,7 @@ const HOW_STEPS = [
   {
     step: '02',
     title: 'Upload Documents',
-    description: 'Upload salary slips, bank statements, ITR, and identity documents.',
+    description: 'Upload salary slips, bank statements, and identity documents.',
   },
   {
     step: '03',

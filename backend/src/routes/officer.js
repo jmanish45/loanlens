@@ -11,6 +11,7 @@ const {
   getActivity,
   getDocumentAnalysis,
   triggerReprocess,
+  getApplicationValidation,
 } = require('../controllers/officerController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -32,8 +33,9 @@ router.patch('/applications/:id/status', updateStatus);
 router.post('/applications/:id/notes', addNote);
 router.get('/applications/:id/notes', getNotes);
 
-// Activity
+// Activity & Validation
 router.get('/applications/:id/activity', getActivity);
+router.get('/applications/:id/validation', getApplicationValidation);
 
 // Documents
 router.get('/documents/:docId/download', downloadDocument);

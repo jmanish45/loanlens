@@ -9,6 +9,7 @@ import {
 import Card from '../../components/common/Card';
 import StatusBadge from '../../components/common/StatusBadge';
 import Button from '../../components/common/Button';
+import VerificationTab from '../../components/officer/VerificationTab';
 import { officerService } from '../../services/officerService';
 import { DOCUMENT_REQUIREMENTS } from '../../constants/mockData';
 
@@ -32,6 +33,7 @@ function formatShortDate(dateStr) {
 const TAB_OPTIONS = [
   { key: 'overview', label: 'Overview', icon: Eye },
   { key: 'documents', label: 'Documents', icon: FileText },
+  { key: 'verification', label: 'Verification', icon: CheckCircle2 },
   { key: 'notes', label: 'Notes & Activity', icon: MessageSquare },
 ];
 
@@ -285,6 +287,9 @@ export default function ApplicationDetails() {
             onReview={handleDocumentReview}
             reviewSubmitting={reviewSubmitting}
           />
+        )}
+        {activeTab === 'verification' && (
+          <VerificationTab applicationId={app._id} />
         )}
         {activeTab === 'notes' && (
           <NotesActivityTab
@@ -612,7 +617,6 @@ function AiAnalysisPanel({ doc, ai, reprocessing, onReprocess, onRefresh }) {
     SALARY_SLIP: 'Salary Slip',
     BANK_STATEMENT: 'Bank Statement',
     FORM_16: 'Form 16',
-    ITR: 'Income Tax Return',
     OTHER: 'Other Document',
     UNKNOWN: 'Unknown',
   };

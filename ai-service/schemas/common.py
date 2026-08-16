@@ -11,7 +11,6 @@ class DocumentType(str, Enum):
     SALARY_SLIP = "SALARY_SLIP"
     BANK_STATEMENT = "BANK_STATEMENT"
     FORM_16 = "FORM_16"
-    ITR = "ITR"
     OTHER = "OTHER"
     UNKNOWN = "UNKNOWN"
 

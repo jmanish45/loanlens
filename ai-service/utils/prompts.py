@@ -8,7 +8,6 @@ Analyze the following document text and classify it into EXACTLY ONE of these ca
 - SALARY_SLIP: Monthly salary slip / payslip
 - BANK_STATEMENT: Bank account statement
 - FORM_16: Form 16 (TDS certificate from employer)
-- ITR: Income Tax Return filing
 - OTHER: A recognizable document that doesn't fit the above categories
 - UNKNOWN: Cannot determine the document type
 
@@ -32,7 +31,6 @@ Look at this document image and classify it into EXACTLY ONE of these categories
 - SALARY_SLIP: Monthly salary slip / payslip
 - BANK_STATEMENT: Bank account statement
 - FORM_16: Form 16 (TDS certificate from employer)
-- ITR: Income Tax Return filing
 - OTHER: A recognizable document that doesn't fit the above categories
 - UNKNOWN: Cannot determine the document type
 
@@ -137,29 +135,37 @@ Document text:
 {document_text}
 ---"""
 
-ITR_EXTRACTION_PROMPT = """You are a precise data extraction expert. Extract structured information from this Income Tax Return (ITR) document.
+
+
+PAN_EXTRACTION_PROMPT = """You are a precise data extraction expert. Extract structured information from this PAN (Permanent Account Number) card document.
 
 Extract ALL available fields. If a field is not present, set it to null.
-For monetary amounts, use plain numbers without currency symbols or commas.
 
 Respond ONLY with valid JSON matching this schema:
 {{
-  "assessee_name": "string or null",
-  "pan": "string or null",
-  "assessment_year": "string or null",
-  "filing_date": "string or null",
-  "itr_form": "string or null",
-  "acknowledgement_number": "string or null",
-  "income_from_salary": "number or null",
-  "income_from_house_property": "number or null",
-  "income_from_business": "number or null",
-  "income_from_capital_gains": "number or null",
-  "income_from_other_sources": "number or null",
-  "gross_total_income": "number or null",
-  "total_deductions": "number or null",
-  "total_taxable_income": "number or null",
-  "total_tax_paid": "number or null",
-  "refund_due": "number or null"
+  "pan_number": "string or null",
+  "name": "string or null",
+  "fathers_name": "string or null",
+  "date_of_birth": "string or null"
+}}
+
+Document text:
+---
+{document_text}
+---"""
+
+AADHAAR_EXTRACTION_PROMPT = """You are a precise data extraction expert. Extract structured information from this Aadhaar card document.
+
+Extract ALL available fields. If a field is not present, set it to null.
+Ensure the Aadhaar number is just the 12 digits without spaces if possible.
+
+Respond ONLY with valid JSON matching this schema:
+{{
+  "aadhaar_number": "string or null",
+  "name": "string or null",
+  "date_of_birth": "string or null",
+  "gender": "string or null",
+  "address": "string or null"
 }}
 
 Document text:
@@ -178,5 +184,6 @@ EXTRACTION_PROMPTS = {
     "SALARY_SLIP": SALARY_SLIP_EXTRACTION_PROMPT,
     "BANK_STATEMENT": BANK_STATEMENT_EXTRACTION_PROMPT,
     "FORM_16": FORM16_EXTRACTION_PROMPT,
-    "ITR": ITR_EXTRACTION_PROMPT,
+    "PAN": PAN_EXTRACTION_PROMPT,
+    "AADHAAR": AADHAAR_EXTRACTION_PROMPT,
 }

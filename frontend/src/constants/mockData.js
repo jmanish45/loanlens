@@ -49,15 +49,13 @@ export const DOCUMENT_REQUIREMENTS = {
     { type: 'aadhaar', label: 'Aadhaar Card', description: 'Identity Proof' },
     { type: 'salary_slip', label: 'Salary Slip', description: 'Last 3 Months' },
     { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' },
-    { type: 'form16', label: 'Form 16', description: 'Latest' },
-    { type: 'itr', label: 'ITR (Income Tax Return)', description: 'Latest Filed' }
+    { type: 'form16', label: 'Form 16', description: 'Latest' }
   ],
   home: [
     { type: 'pan', label: 'PAN Card', description: 'Identity Proof' },
     { type: 'aadhaar', label: 'Aadhaar Card', description: 'Identity Proof' },
     { type: 'salary_slip', label: 'Salary Slip', description: 'Last 3 Months' },
     { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' },
-    { type: 'itr', label: 'ITR (Income Tax Return)', description: 'Latest Filed' },
     { type: 'property_document', label: 'Property Documents', description: 'Agreement / Title Deed' }
   ],
   auto: [

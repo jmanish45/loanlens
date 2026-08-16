@@ -5,6 +5,7 @@ const FormData = require('form-data');
 const Document = require('../models/Document');
 const config = require('../config');
 const { logActivity } = require('../utils/activityLogger');
+const validationService = require('./validationService');
 
 /**
  * AI Document Processing Service
@@ -82,6 +83,11 @@ const processDocument = async (documentId) => {
       documentType: result.document_type,
       confidence: result.confidence,
       originalName: document.originalName,
+    });
+
+    // Trigger cross-document validation in the background
+    validationService.runValidation(document.application).catch(err => {
+      console.error(`[AI] Background validation failed for application ${document.application}:`, err.message);
     });
 
   } catch (error) {

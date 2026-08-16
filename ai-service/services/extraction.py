@@ -8,7 +8,8 @@ from config import get_settings
 from schemas.common import DocumentType
 from schemas.salary_slip import SalarySlipData
 from schemas.bank_statement import BankStatementData
-from schemas.form16_itr import Form16Data, ITRData
+from schemas.form16_itr import Form16Data
+from schemas.identity import PanCardData, AadhaarCardData
 from utils.prompts import EXTRACTION_PROMPTS
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ EXTRACTION_MODELS = {
     DocumentType.SALARY_SLIP: SalarySlipData,
     DocumentType.BANK_STATEMENT: BankStatementData,
     DocumentType.FORM_16: Form16Data,
-    DocumentType.ITR: ITRData,
+    DocumentType.PAN: PanCardData,
+    DocumentType.AADHAAR: AadhaarCardData,
 }
 
 
