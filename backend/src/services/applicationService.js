@@ -6,6 +6,8 @@ const aiService = require('./aiService');
 
 const createApplication = async (data, userId) => {
   const application = await LoanApplication.create({
+    bankId: data.bankId || 'hdfc',
+    bankName: data.bankName || 'HDFC Bank',
     loanType: data.loanType,
     requestedAmount: data.requestedAmount,
     tenureMonths: data.tenureMonths,
@@ -16,6 +18,8 @@ const createApplication = async (data, userId) => {
   });
 
   await logActivity(application._id, userId, 'Application Created', {
+    bankName: data.bankName || 'HDFC Bank',
+    bankId: data.bankId || 'hdfc',
     loanType: data.loanType,
     requestedAmount: data.requestedAmount,
   });

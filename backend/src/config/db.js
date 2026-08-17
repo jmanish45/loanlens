@@ -1,5 +1,13 @@
 const mongoose = require('mongoose');
+const dns = require('dns');
 const config = require('./index');
+
+// Use reliable DNS resolvers for Atlas SRV lookups on Windows
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+} catch (e) {
+  // ignore if restricted
+}
 
 const connectDB = async () => {
   const uri = config.mongodbUri;

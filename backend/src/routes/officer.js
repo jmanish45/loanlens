@@ -15,6 +15,9 @@ const {
   triggerVerification,
   deleteApplication,
   viewDocument,
+  queryLoanAssistant,
+  getPolicies,
+  searchPolicies,
 } = require('../controllers/officerController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -27,11 +30,19 @@ router.use(authorize('officer', 'admin'));
 // Dashboard
 router.get('/dashboard', getDashboardStats);
 
+// Bank Policies (RAG Knowledge Base)
+router.get('/policies', getPolicies);
+router.post('/policies/search', searchPolicies);
+
 // Applications
 router.get('/applications', getApplications);
 router.get('/applications/:id', getApplication);
 router.patch('/applications/:id/status', updateStatus);
 router.delete('/applications/:id', deleteApplication);
+
+// AI Loan Officer Assistant (Hybrid RAG + MongoDB Applicant Data)
+router.post('/applications/:id/assistant', queryLoanAssistant);
+router.post('/loan-assistant', queryLoanAssistant);
 
 // Notes
 router.post('/applications/:id/notes', addNote);

@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers.documents import router as documents_router
+from routers.assistant import router as assistant_router
 
 # Configure logging
 logging.basicConfig(
@@ -32,6 +33,7 @@ app.add_middleware(
 
 # Register routers
 app.include_router(documents_router)
+app.include_router(assistant_router)
 
 
 @app.on_event("startup")

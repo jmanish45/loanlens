@@ -10,6 +10,7 @@ import Card from '../../components/common/Card';
 import StatusBadge from '../../components/common/StatusBadge';
 import Button from '../../components/common/Button';
 import VerificationTab from '../../components/officer/VerificationTab';
+import LoanAssistantChat from '../../components/officer/LoanAssistantChat';
 import { officerService } from '../../services/officerService';
 import { DOCUMENT_REQUIREMENTS } from '../../constants/mockData';
 
@@ -34,6 +35,7 @@ const TAB_OPTIONS = [
   { key: 'overview', label: 'Overview', icon: Eye },
   { key: 'documents', label: 'Documents', icon: FileText },
   { key: 'verification', label: 'Verification', icon: CheckCircle2 },
+  { key: 'assistant', label: 'AI Loan Assistant', icon: Sparkles, badge: 'Hybrid RAG' },
   { key: 'notes', label: 'Notes & Activity', icon: MessageSquare },
 ];
 
@@ -270,8 +272,17 @@ export default function ApplicationDetails() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-charcoal-900">Application #{app._id.slice(-6)}</h1>
-          <p className="text-sm text-charcoal-500 mt-1">
+          <div className="flex items-center gap-2.5 flex-wrap mb-1">
+            <h1 className="text-2xl font-bold text-charcoal-900">Application #{app._id.slice(-6)}</h1>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wide flex items-center gap-1.5 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+              {app.bankName || 'HDFC Bank'}
+            </span>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-cream-200 text-charcoal-700 capitalize">
+              {app.loanType} Loan
+            </span>
+          </div>
+          <p className="text-sm text-charcoal-500">
             {app.applicant?.name} • Created {formatShortDate(app.createdAt)}
           </p>
         </div>
@@ -312,13 +323,18 @@ export default function ApplicationDetails() {
                 className={`
                   flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
                   ${isActive
-                    ? 'border-charcoal-900 text-charcoal-900'
+                    ? 'border-charcoal-900 text-charcoal-900 font-semibold'
                     : 'border-transparent text-charcoal-500 hover:text-charcoal-700 hover:border-cream-400'
                   }
                 `}
               >
-                <Icon className="w-4 h-4" />
-                {tab.label}
+                <Icon className={`w-4 h-4 ${tab.key === 'assistant' ? 'text-indigo-600 animate-pulse' : ''}`} />
+                <span>{tab.label}</span>
+                {tab.badge && (
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -343,6 +359,15 @@ export default function ApplicationDetails() {
         )}
         {activeTab === 'verification' && (
           <VerificationTab applicationId={app._id} app={app} documents={app?.documents} />
+        )}
+        {activeTab === 'assistant' && (
+          <LoanAssistantChat
+            application={app}
+            onNoteAdded={() => {
+              fetchNotes();
+              fetchActivity();
+            }}
+          />
         )}
         {activeTab === 'notes' && (
           <NotesActivityTab
@@ -484,14 +509,15 @@ function OverviewTab({ app, formatAmount, formatDate }) {
         </div>
       </Card>
 
-      <Card className="p-5 border-t-4 border-t-charcoal-300">
+      <Card className="p-5 border-t-4 border-t-indigo-600">
         <h3 className="text-sm font-semibold text-charcoal-900 flex items-center gap-2 mb-5">
-          <Briefcase className="w-4 h-4 text-charcoal-400" /> Loan Details
+          <Briefcase className="w-4 h-4 text-indigo-600" /> Lending Partner & Loan Details
         </h3>
         <div className="space-y-4">
-          <InfoRow label="Loan Type" value={app.loanType} capitalize />
+          <InfoRow label="Lending Partner / Bank" value={app.bankName || 'HDFC Bank'} />
+          <InfoRow label="Loan Type" value={`${app.loanType} Loan`} capitalize />
           <InfoRow label="Requested Amount" value={formatAmount(app.requestedAmount)} />
-          <InfoRow label="Tenure" value={`${app.tenureMonths} months`} />
+          <InfoRow label="Preferred Tenure" value={`${app.tenureMonths} months`} />
           <div className="border-t border-cream-200 pt-3">
             <InfoRow label="Employment Type" value={app.employmentType?.replace('-', ' ')} capitalize />
             <div className="mt-3">

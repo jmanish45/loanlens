@@ -285,7 +285,7 @@ def run_groq_reasoning(
         return _generate_fallback_reasoning(checks, overall_status, overall_severity)
 
     try:
-        model_name = settings.groq_model or "llama-3.3-70b-versatile"
+        model_name = settings.groq_model or "openai/gpt-oss-120b"
         model = ChatGroq(
             model=model_name,
             temperature=0.1,

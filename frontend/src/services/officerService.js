@@ -30,4 +30,12 @@ export const officerService = {
   
   getApplicationValidation: (id) => api.get(`/officer/applications/${id}/validation`),
   triggerVerification: (id) => api.post(`/officer/applications/${id}/verify`),
+
+  // Hybrid RAG AI Loan Officer Assistant
+  askLoanAssistant: (applicationId, question, conversationHistory = []) =>
+    api.post('/ai/loan-assistant', { applicationId, question, conversationHistory }),
+  
+  getBankPolicies: () => api.get('/ai/policies'),
+  searchBankPolicies: (query, category, topK = 5) =>
+    api.post('/ai/policies/search', { query, category, topK }),
 };

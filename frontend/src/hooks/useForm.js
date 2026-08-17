@@ -80,8 +80,25 @@ export function useForm({ initialValues, validationRules, onSubmit }) {
     setIsSuccess(false);
   }, [initialValues]);
 
+  const setFieldValue = useCallback((name, value) => {
+    setValues((prev) => ({ ...prev, [name]: value }));
+    setSubmitError(null);
+
+    const fieldRules = validationRules[name];
+    if (fieldRules) {
+      let fieldError = null;
+      for (const rule of fieldRules) {
+        fieldError = rule(value);
+        if (fieldError) break;
+      }
+      setErrors((prev) => ({ ...prev, [name]: fieldError }));
+    }
+  }, [validationRules]);
+
   return {
     values,
+    setValues,
+    setFieldValue,
     errors,
     touched,
     isSubmitting,

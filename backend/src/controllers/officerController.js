@@ -2,6 +2,7 @@ const officerService = require('../services/officerService');
 const validationService = require('../services/validationService');
 const ValidationResult = require('../models/ValidationResult');
 const aiService = require('../services/aiService');
+const aiAssistantService = require('../services/aiAssistantService');
 const Document = require('../models/Document');
 const path = require('path');
 const fs = require('fs');
@@ -190,6 +191,52 @@ const triggerVerification = async (req, res, next) => {
   }
 };
 
+const queryLoanAssistant = async (req, res, next) => {
+  try {
+    const applicationId = req.params.id || req.body.applicationId;
+    const { question, conversationHistory } = req.body;
+
+    if (!applicationId) {
+      return res.status(400).json({ success: false, message: 'applicationId is required' });
+    }
+    if (!question) {
+      return res.status(400).json({ success: false, message: 'question is required' });
+    }
+
+    const assistantResult = await aiAssistantService.askLoanAssistant(
+      applicationId,
+      question,
+      conversationHistory || []
+    );
+
+    res.json({
+      success: true,
+      data: assistantResult,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getPolicies = async (req, res, next) => {
+  try {
+    const result = await aiAssistantService.getBankPolicies();
+    res.json({ success: true, data: result.policies || [] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const searchPolicies = async (req, res, next) => {
+  try {
+    const { query, category, topK } = req.body;
+    const result = await aiAssistantService.searchBankPolicies(query, category, topK || 5);
+    res.json({ success: true, data: result.results || [] });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getApplications,
   getApplication,
@@ -206,4 +253,7 @@ module.exports = {
   triggerVerification,
   deleteApplication,
   viewDocument,
+  queryLoanAssistant,
+  getPolicies,
+  searchPolicies,
 };

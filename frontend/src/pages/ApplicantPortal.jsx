@@ -125,7 +125,13 @@ export default function ApplicantPortal() {
                 <StatusBadge status={currentApplication.status} />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 py-4 border-t border-b border-cream-300/60">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4 border-t border-b border-cream-300/60">
+                <div>
+                  <p className="text-xs text-charcoal-400">Lending Partner</p>
+                  <p className="text-sm font-bold text-indigo-700 mt-0.5">
+                    {currentApplication.bankName || 'HDFC Bank'}
+                  </p>
+                </div>
                 <div>
                   <p className="text-xs text-charcoal-400">Loan Type</p>
                   <p className="text-sm font-medium text-charcoal-900 capitalize mt-0.5">

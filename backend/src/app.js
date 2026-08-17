@@ -10,6 +10,7 @@ const healthRoutes = require('./routes/health');
 const authRoutes = require('./routes/auth');
 const applicationRoutes = require('./routes/applications');
 const officerRoutes = require('./routes/officer');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/officer', officerRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Error handling
 app.use(notFound);

@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const LOAN_TYPES = ['home', 'personal', 'auto', 'education', 'business', 'vehicle'];
+const LOAN_TYPES = ['home', 'personal', 'auto', 'education', 'business', 'vehicle', 'lap'];
 const EMPLOYMENT_TYPES = ['salaried', 'self-employed', 'business-owner'];
 const APPLICATION_STATUSES = ['draft', 'submitted', 'documents_pending', 'documents_required', 'under_review', 'approved', 'rejected', 'withdrawn'];
 
@@ -10,6 +10,16 @@ const loanApplicationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
+    },
+    bankId: {
+      type: String,
+      default: 'hdfc',
+      trim: true,
+    },
+    bankName: {
+      type: String,
+      default: 'HDFC Bank',
+      trim: true,
     },
     loanType: {
       type: String,
