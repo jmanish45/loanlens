@@ -342,7 +342,7 @@ export default function ApplicationDetails() {
           />
         )}
         {activeTab === 'verification' && (
-          <VerificationTab applicationId={app._id} />
+          <VerificationTab applicationId={app._id} app={app} documents={app?.documents} />
         )}
         {activeTab === 'notes' && (
           <NotesActivityTab

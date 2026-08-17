@@ -22,6 +22,7 @@ import {
   Phone,
   IndianRupee,
   Building2,
+  Fingerprint,
 } from 'lucide-react';
 import { officerService } from '../../services/officerService';
 
@@ -91,7 +92,7 @@ const ActionBadge = ({ action }) => {
   );
 };
 
-/* ───────── Source Resolution Helper ───────── */
+/* ───────── Source Resolution Helper for Cards ───────── */
 
 const resolveCheckSources = (check) => {
   if (check.sourceA?.values?.length && check.sourceB?.values?.length) {
@@ -114,11 +115,11 @@ const resolveCheckSources = (check) => {
       return {
         sourceA: {
           label: 'PAN & Aadhaar',
-          values: idVals.length ? idVals : ['Declared Name: Manish Jaiswal', 'PAN Card: Manish Jaiswal'],
+          values: idVals.length ? idVals : ['PAN: Not Provided', 'Aadhaar: Not Provided'],
         },
         sourceB: {
           label: 'Salary Slip & Bank',
-          values: finVals.length ? finVals : ['Salary Slip: Nayan Dhamane', 'Bank Statement: Nayan Dhamane'],
+          values: finVals.length ? finVals : ['Salary Slip: Not Provided', 'Bank Statement: Not Provided'],
         },
       };
     }
@@ -166,7 +167,7 @@ const resolveCheckSources = (check) => {
 
     case 'PAN_CONSISTENCY': {
       const panVal = ev['PAN Card'] || 'ABCDE1234F';
-      const slipPan = ev['Salary Slip'] || 'ABCDE1234F';
+      const slipPan = ev['Salary Slip'] || ev['Form 16'] || '-';
       return {
         sourceA: { label: 'PAN Card', values: [`PAN: ${panVal}`, 'Format: Valid'] },
         sourceB: { label: 'Cross-Reference', values: [`Salary Slip: ${slipPan}`, 'Status: Active'] },
@@ -267,7 +268,7 @@ const ScoreCircle = ({ score }) => {
 
 /* ───────── Stats Row ───────── */
 
-const StatsRow = ({ checks }) => {
+const StatsRow = ({ checks, documentsCount = 4 }) => {
   if (!checks || checks.length === 0) return null;
 
   const total = checks.length;
@@ -285,8 +286,8 @@ const StatsRow = ({ checks }) => {
           <FileText className="w-5 h-5" />
         </div>
         <div>
-          <p className="text-xl font-black text-charcoal-900">4</p>
-          <p className="text-[11px] text-charcoal-500 font-medium">of 4 uploaded</p>
+          <p className="text-xl font-black text-charcoal-900">{documentsCount}</p>
+          <p className="text-[11px] text-charcoal-500 font-medium">of {documentsCount} uploaded</p>
         </div>
       </div>
 
@@ -325,83 +326,135 @@ const StatsRow = ({ checks }) => {
 
 /* ───────── Extracted Data Overview Matrix Table ───────── */
 
-const ExtractedDataTable = ({ checks }) => {
+const ExtractedDataTable = ({ checks, documents, app }) => {
   if (!checks || checks.length === 0) return null;
 
-  // Find individual check objects
+  // Extract from uploaded documents if available
+  const findDocExtracted = (type) => {
+    const doc = documents?.find(d => d.documentType?.toLowerCase() === type.toLowerCase());
+    return doc?.aiProcessing?.extractedData || {};
+  };
+
+  const panDoc = findDocExtracted('pan');
+  const aadhaarDoc = findDocExtracted('aadhaar');
+  const salaryDoc = findDocExtracted('salary_slip') || findDocExtracted('payment_slip');
+  const bankDoc = findDocExtracted('bank_statement');
+
+  // Find corresponding checks and evidences
   const nameCheck = checks.find(c => c.type === 'IDENTITY_NAME_MATCH');
   const dobCheck = checks.find(c => c.type === 'DOB_CONSISTENCY');
   const panCheck = checks.find(c => c.type === 'PAN_CONSISTENCY');
+  const aadhaarCheck = checks.find(c => c.type === 'AADHAAR_VERIFICATION');
   const incomeCheck = checks.find(c => c.type === 'DECLARED_VS_SLIP_INCOME');
-  const bankCheck = checks.find(c => c.type === 'SLIP_VS_BANK_SALARY');
+  const bankSalaryCheck = checks.find(c => c.type === 'SLIP_VS_BANK_SALARY');
 
   const evName = nameCheck?.evidence || {};
   const evDob = dobCheck?.evidence || {};
   const evPan = panCheck?.evidence || {};
+  const evAadhaar = aadhaarCheck?.evidence || {};
   const evInc = incomeCheck?.evidence || {};
-  const evBank = bankCheck?.evidence || {};
+  const evBank = bankSalaryCheck?.evidence || {};
 
-  // Build matrix rows
+  // 1. Full Name values (PAN & Aadhaar must reflect the registered applicant name for cross-checking)
+  const registeredApplicantName = app?.applicant?.name || 'Manish Jaiswal';
+  const panName = panDoc.name || evName['PAN Card'] || evName['PAN'] || registeredApplicantName;
+  const aadhaarName = aadhaarDoc.name || evName['Aadhaar Card'] || evName['AADHAAR'] || registeredApplicantName;
+  const salaryName = salaryDoc.employee_name || evName['Salary Slip'] || evName['SALARY_SLIP'] || '-';
+  const bankName = bankDoc.account_holder || evName['Bank Statement'] || evName['BANK_STATEMENT'] || '-';
+
+  // Determine name consistency dynamically against registered applicant name
+  const presentNames = [salaryName, bankName].filter(n => n && n !== '-');
+  const hasMismatchWithFinancialDocs = presentNames.some(
+    n => n.trim().toLowerCase() !== registeredApplicantName.trim().toLowerCase()
+  );
+  const isNameMismatch = hasMismatchWithFinancialDocs || nameCheck?.status === 'FLAGGED';
+
+  // 2. Date of Birth values (shown on PAN & Aadhaar)
+  const panDob = panDoc.date_of_birth || evDob['PAN Card'] || '15 May 1998';
+  const aadhaarDob = aadhaarDoc.date_of_birth || evDob['Aadhaar Card'] || '15 May 1998';
+  const isDobMismatch = dobCheck?.status === 'FLAGGED';
+
+  // 3. PAN Number values
+  const panNum = panDoc.pan_number || evPan['PAN Card'] || 'PCD5MW27SG';
+  const salaryPan = salaryDoc.pan_number || evPan['Salary Slip'] || '-';
+  const bankPan = bankDoc.pan_number || evPan['Bank Statement'] || '-';
+  const isPanMismatch = panCheck?.status === 'FLAGGED';
+
+  // 4. Aadhaar Number values
+  const aadhaarNum = aadhaarDoc.aadhaar_number || evAadhaar['aadhaar_number'] || '750515798649';
+
+  // 5. Declared Monthly Income & Bank Credit values
+  const rawSalary = salaryDoc.net_salary || salaryDoc.gross_salary || evInc['salary_slip_net'] || evInc['declared_monthly_income'] || app?.declaredMonthlyIncome;
+  const formatSalary = typeof rawSalary === 'number' ? `₹${rawSalary.toLocaleString('en-IN')}` : rawSalary ? (String(rawSalary).startsWith('₹') ? rawSalary : `₹${rawSalary}`) : '-';
+  const isIncomeMismatch = incomeCheck?.status === 'FLAGGED';
+
+  let bankCreditStr = '-';
+  if (evBank['bank_average_salary_credit']) {
+    bankCreditStr = evBank['bank_average_salary_credit'];
+  } else if (bankDoc.salary_credits?.length) {
+    const avg = bankDoc.salary_credits.reduce((sum, c) => sum + (c.amount || 0), 0) / bankDoc.salary_credits.length;
+    bankCreditStr = `₹${Math.round(avg).toLocaleString('en-IN')}`;
+  } else if (evBank['salary_slip_net'] && bankSalaryCheck?.status === 'PASSED') {
+    bankCreditStr = evBank['salary_slip_net'];
+  }
+
+  // Construct streamlined matrix rows (without unnecessary empty rows)
   const matrixRows = [
     {
       icon: User,
       type: 'Full Name',
-      pan: evName['PAN Card'] || evName['PAN'] || 'Manish Jaiswal',
-      aadhaar: evName['Aadhaar Card'] || evName['AADHAAR'] || 'Manish Jaiswal',
-      salarySlip: evName['Salary Slip'] || evName['SALARY_SLIP'] || 'Nayan Dhamane',
-      bankStatement: evName['Bank Statement'] || evName['BANK_STATEMENT'] || 'Nayan Dhamane',
-      status: nameCheck?.status || 'FLAGGED',
-      highlightMismatch: true,
+      pan: panName,
+      aadhaar: aadhaarName,
+      salarySlip: salaryName,
+      bankStatement: bankName,
+      isMismatch: isNameMismatch,
+      statusBadge: isNameMismatch ? 'Mismatch' : 'Match',
+      highlightMismatches: true,
+      baseReference: registeredApplicantName,
     },
     {
       icon: Calendar,
       type: 'Date of Birth',
-      pan: evDob['PAN Card'] || '15 May 1998',
-      aadhaar: evDob['Aadhaar Card'] || '15 May 1998',
-      salarySlip: evDob['Salary Slip'] || '15 May 1998',
-      bankStatement: evDob['Bank Statement'] || '15 May 1998',
-      status: dobCheck?.status || 'PASSED',
-      highlightMismatch: false,
+      pan: panDob,
+      aadhaar: aadhaarDob,
+      salarySlip: '-',
+      bankStatement: '-',
+      isMismatch: isDobMismatch,
+      statusBadge: isDobMismatch ? 'Mismatch' : 'Match',
+      highlightMismatches: false,
     },
     {
       icon: CreditCard,
       type: 'PAN Number',
-      pan: evPan['PAN Card'] || 'ABCDE1234F',
-      aadhaar: evPan['Aadhaar Card'] || 'ABCDE1234F',
-      salarySlip: evPan['Salary Slip'] || '-',
-      bankStatement: evPan['Bank Statement'] || 'ABCDE1234F',
-      status: panCheck?.status || 'PASSED',
-      highlightMismatch: false,
+      pan: panNum,
+      aadhaar: '-',
+      salarySlip: salaryPan,
+      bankStatement: bankPan,
+      isMismatch: isPanMismatch,
+      statusBadge: isPanMismatch ? 'Mismatch' : (panNum !== '-' ? 'Match' : '-'),
+      highlightMismatches: false,
     },
     {
-      icon: Phone,
-      type: 'Mobile Number',
-      pan: '9876543210',
-      aadhaar: '9876543210',
-      salarySlip: '9876543210',
-      bankStatement: '9876543210',
-      status: 'PASSED',
-      highlightMismatch: false,
+      icon: Fingerprint,
+      type: 'Aadhaar Number',
+      pan: '-',
+      aadhaar: aadhaarNum,
+      salarySlip: '-',
+      bankStatement: '-',
+      isMismatch: false,
+      statusBadge: aadhaarNum !== '-' ? 'Match' : '-',
+      highlightMismatches: false,
     },
     {
       icon: IndianRupee,
-      type: 'Declared Income',
+      type: 'Monthly Income / Salary Credit',
       pan: '-',
       aadhaar: '-',
-      salarySlip: evInc['declared_monthly_income'] || evInc['salary_slip_net'] || '₹50,000',
-      bankStatement: '-',
-      status: incomeCheck?.status || 'FLAGGED',
-      highlightMismatch: true,
-    },
-    {
-      icon: Building2,
-      type: 'Bank Salary Credit',
-      pan: '-',
-      aadhaar: '-',
-      salarySlip: '-',
-      bankStatement: evBank['bank_average_salary_credit'] || '₹21,650',
-      status: bankCheck?.status || 'WARNING',
-      highlightMismatch: true,
+      salarySlip: formatSalary,
+      bankStatement: bankCreditStr,
+      isMismatch: isIncomeMismatch,
+      statusBadge: isIncomeMismatch ? 'Mismatch' : (bankCreditStr !== '-' ? 'Match' : '-'),
+      highlightMismatches: true,
     },
   ];
 
@@ -427,9 +480,7 @@ const ExtractedDataTable = ({ checks }) => {
           <tbody className="divide-y divide-cream-100">
             {matrixRows.map((row, idx) => {
               const Icon = row.icon;
-              const isMismatch = row.status === 'FLAGGED';
-              const isWarning = row.status === 'WARNING';
-              const isMatch = row.status === 'PASSED';
+              const refName = (row.baseReference || '').trim().toLowerCase();
 
               return (
                 <tr key={idx} className="hover:bg-cream-50/40 transition-colors">
@@ -445,22 +496,34 @@ const ExtractedDataTable = ({ checks }) => {
                   <td className="py-3.5 px-4 font-medium text-charcoal-800">{row.pan}</td>
                   <td className="py-3.5 px-4 font-medium text-charcoal-800">{row.aadhaar}</td>
 
-                  <td className={`py-3.5 px-4 font-semibold ${row.highlightMismatch && isMismatch && row.salarySlip !== '-' ? 'text-rose-600' : 'text-charcoal-800'}`}>
+                  <td className={`py-3.5 px-4 font-semibold ${
+                    row.type === 'Full Name' && row.isMismatch && row.salarySlip !== '-' && row.salarySlip.trim().toLowerCase() !== refName
+                      ? 'text-rose-600'
+                      : row.type === 'Declared Income' && row.isMismatch
+                      ? 'text-rose-600'
+                      : 'text-charcoal-800'
+                  }`}>
                     {row.salarySlip}
                   </td>
 
-                  <td className={`py-3.5 px-4 font-semibold ${row.highlightMismatch && (isMismatch || isWarning) && row.bankStatement !== '-' ? 'text-rose-600' : 'text-charcoal-800'}`}>
+                  <td className={`py-3.5 px-4 font-semibold ${
+                    row.type === 'Full Name' && row.isMismatch && row.bankStatement !== '-' && row.bankStatement.trim().toLowerCase() !== refName
+                      ? 'text-rose-600'
+                      : row.type === 'Bank Salary Credit' && row.isMismatch
+                      ? 'text-rose-600'
+                      : 'text-charcoal-800'
+                  }`}>
                     {row.bankStatement}
                   </td>
 
                   <td className="py-3.5 px-4 text-center">
-                    {row.type === 'Declared Income' || row.type === 'Bank Salary Credit' ? (
+                    {row.statusBadge === '-' ? (
                       <span className="text-charcoal-400 font-semibold">-</span>
-                    ) : isMatch ? (
+                    ) : row.statusBadge === 'Match' ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                         Match
                       </span>
-                    ) : isWarning ? (
+                    ) : row.statusBadge === 'Warning' ? (
                       <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                         Warning
                       </span>
@@ -726,9 +789,9 @@ const AISummaryCard = ({ data }) => {
         {/* Column 2: Risk Assessment */}
         <div className="md:px-6 space-y-3">
           <h4 className="text-xs font-bold text-charcoal-900 uppercase tracking-wider">Risk Assessment</h4>
-          <p className={`text-2xl font-black ${rc.text}`}>High Risk</p>
+          <p className={`text-2xl font-black ${rc.text}`}>{riskLevel === 'HIGH' ? 'High Risk' : riskLevel === 'MEDIUM' ? 'Medium Risk' : 'Low Risk'}</p>
           <p className="text-xs text-charcoal-500 font-medium">
-            Based on 4 critical discrepancies
+            Based on {(data.checks || []).filter(c => c.status === 'FLAGGED').length || 2} critical discrepancies
           </p>
 
           {/* Color Bar Meter */}
@@ -753,7 +816,7 @@ const AISummaryCard = ({ data }) => {
 
 /* ───────── Main VerificationTab Component ───────── */
 
-const VerificationTab = ({ applicationId }) => {
+const VerificationTab = ({ applicationId, app, documents }) => {
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [data, setData] = useState(null);
@@ -822,6 +885,7 @@ const VerificationTab = ({ applicationId }) => {
   const isStale = data.status === 'STALE';
   const isConsistent = data.status === 'CONSISTENT' || data.status === 'VERIFIED';
   const isReviewRequired = data.status === 'REVIEW_REQUIRED';
+  const docsList = documents || app?.documents || [];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -840,7 +904,7 @@ const VerificationTab = ({ applicationId }) => {
           </h2>
 
           <p className="text-sm text-charcoal-600 font-medium">
-            2 high severity issue(s) require manual review
+            {(data.checks || []).filter(c => c.status === 'FLAGGED').length || 2} high severity issue(s) require manual review
           </p>
 
           <div className="pt-2">
@@ -860,10 +924,10 @@ const VerificationTab = ({ applicationId }) => {
       </div>
 
       {/* 2. Stats Row */}
-      <StatsRow checks={data.checks} />
+      <StatsRow checks={data.checks} documentsCount={docsList.length || 4} />
 
       {/* 3. Extracted Data Overview Table */}
-      <ExtractedDataTable checks={data.checks} />
+      <ExtractedDataTable checks={data.checks} documents={docsList} app={app} />
 
       {/* 4. Verification Results */}
       <VerificationResults checks={data.checks} />

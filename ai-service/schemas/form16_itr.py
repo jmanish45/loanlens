@@ -1,7 +1,25 @@
 """Form 16 extraction schemas."""
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from __future__ import annotations
+
+from typing import Optional, Any
+from pydantic import BaseModel, Field, field_validator
+
+
+def _clean_float(v: Any) -> Optional[float]:
+    if v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        cleaned = "".join(ch for ch in v if ch.isdigit() or ch in ".-")
+        if cleaned in ("", "-", "."):
+            return None
+        try:
+            return float(cleaned)
+        except ValueError:
+            return None
+    return None
 
 
 class Form16Data(BaseModel):
@@ -29,3 +47,20 @@ class Form16Data(BaseModel):
     total_taxable_income: Optional[float] = Field(default=None, description="Total taxable income after deductions")
     tax_payable: Optional[float] = Field(default=None, description="Total tax payable")
     tds_deducted: Optional[float] = Field(default=None, description="TDS already deducted")
+
+    @field_validator(
+        "gross_salary",
+        "total_exemptions",
+        "net_taxable_salary",
+        "total_income",
+        "section_80c",
+        "section_80d",
+        "total_deductions",
+        "total_taxable_income",
+        "tax_payable",
+        "tds_deducted",
+        mode="before",
+    )
+    @classmethod
+    def clean_numeric_fields(cls, v: Any) -> Optional[float]:
+        return _clean_float(v)

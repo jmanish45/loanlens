@@ -221,11 +221,38 @@ def extract_structured_data_mistral(
     ])
 
     messages = prompt.format_messages(data=raw_text)
-    result = structured_llm.invoke(messages)
+    try:
+        result = structured_llm.invoke(messages)
 
-    if isinstance(result, BaseModel):
-        return result.model_dump(exclude_none=False)
-    elif isinstance(result, dict):
-        return result
-    else:
-        return dict(result)
+        if isinstance(result, BaseModel):
+            return result.model_dump(exclude_none=False)
+        elif isinstance(result, dict):
+            return result
+        else:
+            return dict(result)
+    except Exception as e:
+        logger.warning(f"[Mistral Extractor] Structured invocation warning: {e}. Attempting direct extraction fallback.")
+        try:
+            settings = get_settings()
+            api_key = settings.mistral_api_key or os.getenv("MISTRAL_API_KEY", "")
+            raw_llm = ChatMistralAI(
+                model=settings.mistral_model or "mistral-small-2506",
+                temperature=0,
+                mistral_api_key=api_key
+            )
+            json_prompt = ChatPromptTemplate.from_messages([
+                ("system", system_prompt + "\nReturn ONLY valid JSON matching the schema fields."),
+                ("human", "Extract the structured document data from this text as pure JSON:\n\n{data}"),
+            ])
+            raw_res = raw_llm.invoke(json_prompt.format_messages(data=raw_text))
+            import json, re
+            content = raw_res.content if hasattr(raw_res, 'content') else str(raw_res)
+            # Find json block
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                parsed = json.loads(json_match.group(0))
+                validated = schema_cls(**parsed)
+                return validated.model_dump(exclude_none=False)
+        except Exception as fallback_err:
+            logger.error(f"[Mistral Extractor] Fallback extraction also failed: {fallback_err}")
+        raise e
