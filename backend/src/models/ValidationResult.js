@@ -1,5 +1,20 @@
 const mongoose = require('mongoose');
 
+const evidenceSideSchema = new mongoose.Schema(
+  {
+    label: {
+      type: String,
+      required: true,
+    },
+    values: [
+      {
+        type: String,
+      },
+    ],
+  },
+  { _id: false }
+);
+
 const checkSchema = new mongoose.Schema(
   {
     type: {
@@ -24,6 +39,14 @@ const checkSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
+    sourceA: {
+      type: evidenceSideSchema,
+      default: null,
+    },
+    sourceB: {
+      type: evidenceSideSchema,
+      default: null,
+    },
   },
   { _id: false }
 );
@@ -34,20 +57,32 @@ const findingSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    subtitle: {
+      type: String,
+      default: '',
+    },
     severity: {
       type: String,
       enum: ['LOW', 'MEDIUM', 'HIGH'],
       required: true,
     },
     explanation: {
-      type: String,
-      required: true,
+      type: [String],
+      default: [],
     },
     documents: [
       {
         type: String,
       },
     ],
+    sourceA: {
+      type: evidenceSideSchema,
+      default: null,
+    },
+    sourceB: {
+      type: evidenceSideSchema,
+      default: null,
+    },
   },
   { _id: false }
 );
@@ -79,6 +114,17 @@ const validationResultSchema = new mongoose.Schema(
       enum: ['LOW', 'MEDIUM', 'HIGH'],
       default: 'LOW',
     },
+    verificationScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 50,
+    },
+    keyFindings: [
+      {
+        type: String,
+      },
+    ],
     findings: [findingSchema],
     recommendedAction: {
       type: String,
@@ -104,4 +150,3 @@ validationResultSchema.methods.toJSON = function () {
 const ValidationResult = mongoose.model('ValidationResult', validationResultSchema);
 
 module.exports = ValidationResult;
-

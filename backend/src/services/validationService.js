@@ -54,6 +54,33 @@ const runValidation = async (applicationId) => {
       return;
     }
 
+    // ── CACHE CHECK: Skip Groq if a valid (non-STALE) result already exists ──
+    const existingResult = await ValidationResult.findOne({ application: applicationId });
+    if (
+      existingResult &&
+      existingResult.status !== 'STALE' &&
+      existingResult.status !== 'PENDING_DOCS'
+    ) {
+      // Verify no documents have been re-processed since the last validation
+      const latestDocProcessedAt = Math.max(
+        ...application.documents
+          .filter((d) => d.aiProcessing?.processedAt)
+          .map((d) => new Date(d.aiProcessing.processedAt).getTime()),
+        0
+      );
+      const validatedAt = new Date(existingResult.validatedAt).getTime();
+
+      if (latestDocProcessedAt <= validatedAt) {
+        console.log(
+          `[Validation] ⏭️  Skipping for application ${applicationId} — valid result already exists (status=${existingResult.status}, validated=${existingResult.validatedAt})`
+        );
+        return existingResult;
+      }
+      console.log(
+        `[Validation] Re-running for application ${applicationId} — documents updated after last validation`
+      );
+    }
+
     const docs = (application.documents || []).filter(
       (d) => d.aiProcessing && d.aiProcessing.status === 'completed' && d.aiProcessing.extractedData
     );
@@ -96,12 +123,17 @@ const runValidation = async (applicationId) => {
         overallSeverity: 'HIGH',
         summary: `Verification service call failed: ${aiErr.message}. Manual review required.`,
         riskLevel: 'HIGH',
+        verificationScore: 0,
+        keyFindings: ['Verification service could not be contacted', 'Manual review required'],
         findings: [
           {
             title: 'Verification Service Offline',
+            subtitle: 'Service connectivity issue',
             severity: 'HIGH',
-            explanation: 'Cross-document verification service could not be contacted.',
+            explanation: ['Cross-document verification service could not be contacted.', 'Please retry or perform manual review.'],
             documents: ['APPLICATION'],
+            sourceA: null,
+            sourceB: null,
           },
         ],
         recommendedAction: 'MANUAL_REVIEW',
@@ -119,6 +151,8 @@ const runValidation = async (applicationId) => {
         overallSeverity: validationData.overallSeverity || 'LOW',
         summary: validationData.summary || '',
         riskLevel: validationData.riskLevel || 'LOW',
+        verificationScore: validationData.verificationScore ?? 50,
+        keyFindings: validationData.keyFindings || [],
         findings: validationData.findings || [],
         recommendedAction: validationData.recommendedAction || 'MANUAL_REVIEW',
         checks: validationData.checks || [],

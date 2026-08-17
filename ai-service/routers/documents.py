@@ -324,6 +324,8 @@ async def verify_application_endpoint(request: VerifyApplicationRequest):
             overallSeverity=overall_severity,
             summary=groq_result.summary,
             riskLevel=groq_result.riskLevel or overall_severity,
+            verificationScore=groq_result.verificationScore,
+            keyFindings=groq_result.keyFindings or [],
             findings=groq_result.findings or [],
             recommendedAction=groq_result.recommendedAction,
             checks=checks,

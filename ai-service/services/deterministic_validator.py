@@ -13,6 +13,7 @@ from schemas.verification import (
     SeverityLevel,
     VerificationStatus,
     VerifyApplicationDocument,
+    EvidenceSide,
 )
 
 
@@ -87,7 +88,7 @@ def run_deterministic_validation(
         if dtype not in docs_by_type:
             docs_by_type[dtype] = []
         if doc.extracted_data:
-            docs_by_type[dtype].push(doc.extracted_data) if hasattr(docs_by_type[dtype], 'push') else docs_by_type[dtype].append(doc.extracted_data)
+            docs_by_type[dtype].append(doc.extracted_data)
 
     def get_first(dtype: str) -> Optional[Dict[str, Any]]:
         items = docs_by_type.get(dtype, [])
@@ -134,6 +135,19 @@ def run_deterministic_validation(
         name_evidence = {src: name for src, name in names}
         name_evidence["lowest_match_score"] = f"{int(lowest_sim * 100)}%"
 
+        # Build structured sourceA/sourceB for name comparison
+        # sourceA = identity docs (PAN, Aadhaar), sourceB = financial docs (Salary, Bank)
+        identity_values = []
+        financial_values = []
+        for src, name in names:
+            if src in ("PAN Card", "Aadhaar Card", "Declared Name"):
+                identity_values.append(f"{src}: {name}")
+            else:
+                financial_values.append(f"{src}: {name}")
+
+        src_a = EvidenceSide(label="Identity Documents", values=identity_values) if identity_values else None
+        src_b = EvidenceSide(label="Financial Documents", values=financial_values) if financial_values else None
+
         if lowest_sim >= 0.85:
             checks.append(VerificationCheck(
                 type="IDENTITY_NAME_MATCH",
@@ -141,6 +155,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.LOW,
                 message="Applicant name is consistent across all provided documents.",
                 evidence=name_evidence,
+                sourceA=src_a,
+                sourceB=src_b,
             ))
         elif lowest_sim >= 0.70:
             checks.append(VerificationCheck(
@@ -149,6 +165,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.MEDIUM,
                 message="Minor variations detected in applicant name across documents (e.g. initials or abbreviations).",
                 evidence=name_evidence,
+                sourceA=src_a,
+                sourceB=src_b,
             ))
         else:
             checks.append(VerificationCheck(
@@ -157,6 +175,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.HIGH,
                 message=f"Significant name discrepancy detected: {'; '.join(mismatches)}.",
                 evidence=name_evidence,
+                sourceA=src_a,
+                sourceB=src_b,
             ))
 
     # -------------------------------------------------------------------------
@@ -172,6 +192,10 @@ def run_deterministic_validation(
         dob_evidence = {src: val for src, val in dobs}
         n_dob1 = normalize_date_str(dobs[0][1])
         n_dob2 = normalize_date_str(dobs[1][1])
+
+        dob_src_a = EvidenceSide(label=dobs[0][0], values=[f"Date of Birth: {dobs[0][1]}"])
+        dob_src_b = EvidenceSide(label=dobs[1][0], values=[f"Date of Birth: {dobs[1][1]}"])
+
         if n_dob1 == n_dob2 or (n_dob1 and n_dob2 and (n_dob1 in n_dob2 or n_dob2 in n_dob1)):
             checks.append(VerificationCheck(
                 type="DOB_CONSISTENCY",
@@ -179,6 +203,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.LOW,
                 message="Date of birth matches across identity documents.",
                 evidence=dob_evidence,
+                sourceA=dob_src_a,
+                sourceB=dob_src_b,
             ))
         else:
             checks.append(VerificationCheck(
@@ -187,6 +213,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.HIGH,
                 message=f"Date of birth mismatch between {dobs[0][0]} and {dobs[1][0]}.",
                 evidence=dob_evidence,
+                sourceA=dob_src_a,
+                sourceB=dob_src_b,
             ))
 
     # PAN Number Cross-Check
@@ -201,6 +229,13 @@ def run_deterministic_validation(
     if len(pan_numbers) >= 2:
         pan_evidence = {src: val for src, val in pan_numbers}
         norm_pans = [normalize_pan_str(val) for _, val in pan_numbers if normalize_pan_str(val)]
+
+        pan_src_a = EvidenceSide(label=pan_numbers[0][0], values=[f"PAN: {pan_numbers[0][1]}", f"Format: {'Valid' if normalize_pan_str(pan_numbers[0][1]) else 'Invalid'}"])
+        pan_src_b_values = []
+        for src, val in pan_numbers[1:]:
+            pan_src_b_values.append(f"{src}: {val}")
+        pan_src_b = EvidenceSide(label="Cross-Reference", values=pan_src_b_values)
+
         if len(set(norm_pans)) == 1:
             checks.append(VerificationCheck(
                 type="PAN_CONSISTENCY",
@@ -208,6 +243,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.LOW,
                 message="PAN number matches consistently across all records.",
                 evidence=pan_evidence,
+                sourceA=pan_src_a,
+                sourceB=pan_src_b,
             ))
         else:
             checks.append(VerificationCheck(
@@ -216,10 +253,39 @@ def run_deterministic_validation(
                 severity=SeverityLevel.HIGH,
                 message="PAN number mismatch detected across documents.",
                 evidence=pan_evidence,
+                sourceA=pan_src_a,
+                sourceB=pan_src_b,
             ))
 
     # -------------------------------------------------------------------------
-    # 3. Employment Checks: Employer Name Consistency
+    # 3. Aadhaar Verification
+    # -------------------------------------------------------------------------
+    if aadhaar_data:
+        aadhaar_num = aadhaar_data.get("aadhaar_number", "")
+        aadhaar_formatted = aadhaar_num if aadhaar_num else "Not extracted"
+        aadhaar_valid = bool(aadhaar_num and len(re.sub(r"[^\d]", "", aadhaar_num)) == 12)
+
+        aadhaar_src_a = EvidenceSide(
+            label="Aadhaar Card",
+            values=[f"Aadhaar: {aadhaar_formatted}", f"Format: {'Valid' if aadhaar_valid else 'Invalid'}"]
+        )
+        aadhaar_src_b = EvidenceSide(
+            label="Status",
+            values=[f"Status: {'Active' if aadhaar_valid else 'Needs Verification'}", f"Linked: {'Yes' if aadhaar_valid else 'Unknown'}"]
+        )
+
+        checks.append(VerificationCheck(
+            type="AADHAAR_VERIFICATION",
+            status=CheckStatus.PASSED if aadhaar_valid else CheckStatus.WARNING,
+            severity=SeverityLevel.LOW if aadhaar_valid else SeverityLevel.MEDIUM,
+            message="Aadhaar number format is valid." if aadhaar_valid else "Aadhaar number could not be fully verified.",
+            evidence={"aadhaar_number": aadhaar_formatted, "format_valid": aadhaar_valid},
+            sourceA=aadhaar_src_a,
+            sourceB=aadhaar_src_b,
+        ))
+
+    # -------------------------------------------------------------------------
+    # 4. Employment Checks: Employer Name Consistency
     # -------------------------------------------------------------------------
     employers: List[Tuple[str, str]] = []
     if salary_slip and salary_slip.get("employer"):
@@ -232,6 +298,9 @@ def run_deterministic_validation(
         emp_sim = fuzzy_similarity(employers[0][1], employers[1][1])
         emp_evidence["match_score"] = f"{int(emp_sim * 100)}%"
 
+        emp_src_a = EvidenceSide(label=employers[0][0], values=[f"Employer: {employers[0][1]}"])
+        emp_src_b = EvidenceSide(label=employers[1][0], values=[f"Employer: {employers[1][1]}"])
+
         if emp_sim >= 0.75:
             checks.append(VerificationCheck(
                 type="EMPLOYER_CONSISTENCY",
@@ -239,6 +308,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.LOW,
                 message="Employer name is consistent across employment records.",
                 evidence=emp_evidence,
+                sourceA=emp_src_a,
+                sourceB=emp_src_b,
             ))
         elif emp_sim >= 0.50:
             checks.append(VerificationCheck(
@@ -247,6 +318,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.MEDIUM,
                 message="Minor variation in employer legal naming between documents.",
                 evidence=emp_evidence,
+                sourceA=emp_src_a,
+                sourceB=emp_src_b,
             ))
         else:
             checks.append(VerificationCheck(
@@ -255,10 +328,12 @@ def run_deterministic_validation(
                 severity=SeverityLevel.HIGH,
                 message=f"Employer mismatch detected: '{employers[0][1]}' vs '{employers[1][1]}'.",
                 evidence=emp_evidence,
+                sourceA=emp_src_a,
+                sourceB=emp_src_b,
             ))
 
     # -------------------------------------------------------------------------
-    # 4. Income Checks: Declared vs Salary Slip
+    # 5. Income Checks: Declared vs Salary Slip
     # -------------------------------------------------------------------------
     slip_net = parse_numeric(salary_slip.get("net_salary") or salary_slip.get("net_payment") or salary_slip.get("payment_amount")) if salary_slip else 0.0
     slip_gross = parse_numeric(salary_slip.get("gross_salary")) if salary_slip else 0.0
@@ -274,6 +349,17 @@ def run_deterministic_validation(
             "variance": f"{diff_pct:.1f}%",
         }
 
+        inc_src_a = EvidenceSide(
+            label="Declared Income (Slip)",
+            values=[f"Declared Income: ₹{declared_income:,.0f}"] +
+                   ([f"Salary Slip Net: ₹{slip_net:,.0f}"] if slip_net > 0 else []) +
+                   ([f"Salary Slip Gross: ₹{slip_gross:,.0f}"] if slip_gross > 0 else [])
+        )
+        inc_src_b = EvidenceSide(
+            label="Variance Analysis",
+            values=[f"Difference: {diff_pct:.1f}%", f"Reference Amount: ₹{ref_salary:,.0f}"]
+        )
+
         if diff_pct <= 20.0:
             checks.append(VerificationCheck(
                 type="DECLARED_VS_SLIP_INCOME",
@@ -281,6 +367,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.LOW,
                 message="Declared monthly income aligns with salary slip compensation.",
                 evidence=inc_evidence,
+                sourceA=inc_src_a,
+                sourceB=inc_src_b,
             ))
         elif diff_pct <= 35.0:
             checks.append(VerificationCheck(
@@ -289,6 +377,8 @@ def run_deterministic_validation(
                 severity=SeverityLevel.MEDIUM,
                 message=f"Declared income differs by {diff_pct:.1f}% from salary slip take-home pay.",
                 evidence=inc_evidence,
+                sourceA=inc_src_a,
+                sourceB=inc_src_b,
             ))
         else:
             checks.append(VerificationCheck(
@@ -297,10 +387,12 @@ def run_deterministic_validation(
                 severity=SeverityLevel.HIGH,
                 message=f"Material difference ({diff_pct:.1f}%) between declared income and salary slip.",
                 evidence=inc_evidence,
+                sourceA=inc_src_a,
+                sourceB=inc_src_b,
             ))
 
     # -------------------------------------------------------------------------
-    # 5. Income Checks: Salary Slip vs Bank Statement Salary Credits
+    # 6. Income Checks: Salary Slip vs Bank Statement Salary Credits
     # -------------------------------------------------------------------------
     if bank_stmt and (slip_net > 0 or declared_income > 0):
         salary_credits = bank_stmt.get("salary_credits") or []
@@ -318,6 +410,16 @@ def run_deterministic_validation(
                 "variance": f"{bank_diff_pct:.1f}%",
             }
 
+            bank_src_a = EvidenceSide(
+                label="Declared Income (Slip)",
+                values=[f"Declared Income: ₹{baseline:,.0f}"] +
+                       ([f"Salary Slip Net: ₹{slip_net:,.0f}"] if slip_net > 0 else [])
+            )
+            bank_src_b = EvidenceSide(
+                label="Average Monthly Credit (Bank)",
+                values=[f"Avg Bank Credit: ₹{avg_bank_salary:,.0f}", f"Credits Found: {len(credits_amounts)}"]
+            )
+
             if bank_diff_pct <= 20.0:
                 checks.append(VerificationCheck(
                     type="SLIP_VS_BANK_SALARY",
@@ -325,6 +427,8 @@ def run_deterministic_validation(
                     severity=SeverityLevel.LOW,
                     message="Bank statement recurring salary credits match salary slip amount.",
                     evidence=bank_sal_evidence,
+                    sourceA=bank_src_a,
+                    sourceB=bank_src_b,
                 ))
             elif bank_diff_pct <= 35.0:
                 checks.append(VerificationCheck(
@@ -333,6 +437,8 @@ def run_deterministic_validation(
                     severity=SeverityLevel.MEDIUM,
                     message=f"Bank recurring salary credits differ by {bank_diff_pct:.1f}% from salary slip.",
                     evidence=bank_sal_evidence,
+                    sourceA=bank_src_a,
+                    sourceB=bank_src_b,
                 ))
             else:
                 checks.append(VerificationCheck(
@@ -341,18 +447,30 @@ def run_deterministic_validation(
                     severity=SeverityLevel.HIGH,
                     message=f"Bank statement recurring salary credits (₹{avg_bank_salary:,.0f}) differ significantly ({bank_diff_pct:.1f}%) from salary slip.",
                     evidence=bank_sal_evidence,
+                    sourceA=bank_src_a,
+                    sourceB=bank_src_b,
                 ))
         else:
+            no_credit_src_a = EvidenceSide(
+                label="Expected",
+                values=["Expected: Regular Credits", "Based on Salary Slip"]
+            )
+            no_credit_src_b = EvidenceSide(
+                label="Found",
+                values=["Found: No Regular Credits", "Last 6 Months"]
+            )
             checks.append(VerificationCheck(
                 type="SLIP_VS_BANK_SALARY",
                 status=CheckStatus.WARNING,
                 severity=SeverityLevel.MEDIUM,
                 message="No recurring salary credit entries explicitly identified in bank statement transactions.",
                 evidence={"salary_credits_detected": 0},
+                sourceA=no_credit_src_a,
+                sourceB=no_credit_src_b,
             ))
 
     # -------------------------------------------------------------------------
-    # 6. Income Checks: Salary Slip vs Form 16
+    # 7. Income Checks: Salary Slip vs Form 16
     # -------------------------------------------------------------------------
     if form16 and (slip_gross > 0 or slip_net > 0):
         f16_gross = parse_numeric(form16.get("gross_salary") or form16.get("total_income"))
@@ -366,6 +484,15 @@ def run_deterministic_validation(
                 "variance": f"{f16_diff_pct:.1f}%",
             }
 
+            f16_src_a = EvidenceSide(
+                label="Salary Slip (Annualized)",
+                values=[f"Annualized: ₹{annualized_slip:,.0f}", f"Monthly: ₹{(slip_gross if slip_gross > 0 else slip_net):,.0f}"]
+            )
+            f16_src_b = EvidenceSide(
+                label="Form 16 Gross",
+                values=[f"Form 16 Gross: ₹{f16_gross:,.0f}", f"Variance: {f16_diff_pct:.1f}%"]
+            )
+
             if f16_diff_pct <= 25.0:
                 checks.append(VerificationCheck(
                     type="SLIP_VS_FORM16_INCOME",
@@ -373,6 +500,8 @@ def run_deterministic_validation(
                     severity=SeverityLevel.LOW,
                     message="Annualized salary aligns with Form 16 reported gross salary.",
                     evidence=f16_evidence,
+                    sourceA=f16_src_a,
+                    sourceB=f16_src_b,
                 ))
             elif f16_diff_pct <= 40.0:
                 checks.append(VerificationCheck(
@@ -381,6 +510,8 @@ def run_deterministic_validation(
                     severity=SeverityLevel.MEDIUM,
                     message=f"Variance of {f16_diff_pct:.1f}% between Form 16 annual income and salary slip.",
                     evidence=f16_evidence,
+                    sourceA=f16_src_a,
+                    sourceB=f16_src_b,
                 ))
             else:
                 checks.append(VerificationCheck(
@@ -389,10 +520,12 @@ def run_deterministic_validation(
                     severity=SeverityLevel.HIGH,
                     message=f"Substantial variance ({f16_diff_pct:.1f}%) between Form 16 gross salary and annualized salary slip.",
                     evidence=f16_evidence,
+                    sourceA=f16_src_a,
+                    sourceB=f16_src_b,
                 ))
 
     # -------------------------------------------------------------------------
-    # 7. Financial Checks: Existing EMI Debits
+    # 8. Financial Checks: Existing EMI Debits
     # -------------------------------------------------------------------------
     if bank_stmt:
         emi_debits = bank_stmt.get("emi_debits") or []
@@ -410,6 +543,15 @@ def run_deterministic_validation(
                 "existing_obligation_ratio": f"{dti:.1f}%" if income_ref > 0 else "N/A",
             }
 
+            emi_src_a = EvidenceSide(
+                label="EMI Obligations",
+                values=[f"Total Monthly EMI: ₹{total_emi:,.0f}", f"EMI Count: {len(emi_amounts)}"]
+            )
+            emi_src_b = EvidenceSide(
+                label="Income Reference",
+                values=[f"Monthly Income: ₹{income_ref:,.0f}" if income_ref > 0 else "Income: N/A", f"DTI Ratio: {dti:.1f}%" if income_ref > 0 else "DTI: N/A"]
+            )
+
             if dti > 50.0:
                 checks.append(VerificationCheck(
                     type="EXISTING_EMI_BURDEN",
@@ -417,6 +559,8 @@ def run_deterministic_validation(
                     severity=SeverityLevel.HIGH,
                     message=f"High existing loan EMI obligations detected ({dti:.1f}% of income).",
                     evidence=emi_evidence,
+                    sourceA=emi_src_a,
+                    sourceB=emi_src_b,
                 ))
             else:
                 checks.append(VerificationCheck(
@@ -425,6 +569,8 @@ def run_deterministic_validation(
                     severity=SeverityLevel.LOW,
                     message=f"Existing EMI obligations detected (approx. ₹{total_emi:,.0f}/month) within manageable limits.",
                     evidence=emi_evidence,
+                    sourceA=emi_src_a,
+                    sourceB=emi_src_b,
                 ))
 
     # -------------------------------------------------------------------------

@@ -123,12 +123,55 @@ const processDocumentInternal = async (documentId) => {
       return;
     }
 
+    // ── CACHE CHECK 1: This exact document is already fully processed ──
+    if (
+      document.aiProcessing &&
+      document.aiProcessing.status === 'completed' &&
+      document.aiProcessing.extractedData &&
+      document.aiProcessing.promptVersion === PROMPT_VERSION
+    ) {
+      console.log(
+        `[AI] ⏭️  Skipping ${document.originalName} (${documentId}) — already processed (promptVersion=${PROMPT_VERSION})`
+      );
+      // Still trigger validation in case this was the last pending doc
+      await triggerDeferredValidation(document.application);
+      return;
+    }
+
     const filePath = document.path;
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found on disk: ${filePath}`);
     }
 
     const fileHash = await computeFileHash(filePath);
+
+    // ── CACHE CHECK 2: Another document with same file hash was already processed ──
+    const cached = await findCachedResult(fileHash);
+    if (cached) {
+      console.log(
+        `[AI] ⏭️  Cache hit for ${document.originalName} (hash=${fileHash.substring(0, 12)}…) — reusing previous result`
+      );
+      document.ocr = document.ocr || {};
+      document.ocr.status = 'completed';
+      document.ocr.processedAt = new Date();
+
+      document.aiProcessing = document.aiProcessing || {};
+      document.aiProcessing.status = cached.status;
+      document.aiProcessing.predictedType = cached.predictedType;
+      document.aiProcessing.confidence = cached.confidence;
+      document.aiProcessing.extractedData = cached.extractedData;
+      document.aiProcessing.extractionMethod = cached.extractionMethod;
+      document.aiProcessing.processedAt = new Date();
+      document.aiProcessing.fileHash = fileHash;
+      document.aiProcessing.promptVersion = PROMPT_VERSION;
+      document.aiProcessing.documentTypeMatch = cached.documentTypeMatch;
+      document.aiProcessing.geminiCallsMade = 0;
+      document.aiProcessing.processingError = null;
+      await document.save();
+
+      await triggerDeferredValidation(document.application);
+      return;
+    }
 
     // Identity documents (PAN/Aadhaar): PyMuPDF local extraction, no LLM
     const isIdentityDoc = document.documentType === 'pan' || document.documentType === 'aadhaar';
