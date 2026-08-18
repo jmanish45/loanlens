@@ -9,11 +9,16 @@ import {
   ArrowRight,
   ShieldCheck,
   Sparkles,
-  CheckCircle2,
-  Brain,
   Building,
+  Brain,
+  FileCheck2,
+  PieChart,
+  Shield,
+  Smartphone,
+  ChevronDown,
   UserCheck,
-  Briefcase,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useForm } from '../hooks/useForm';
@@ -36,7 +41,8 @@ export default function Login() {
   const location = useLocation();
 
   const [showPassword, setShowPassword] = useState(false);
-  const [selectedRole, setSelectedRole] = useState('officer'); // 'officer' | 'applicant'
+  const [activePortal, setActivePortal] = useState('applicant'); // 'applicant' | 'officer'
+  const [selectedLang, setSelectedLang] = useState('English');
 
   const {
     values,
@@ -50,7 +56,7 @@ export default function Login() {
     handleSubmit,
   } = useForm({
     initialValues: {
-      email: 'officer@loanlens.ai',
+      email: 'rohit.sharma@example.com',
       password: 'Password123!',
     },
     validationRules,
@@ -61,307 +67,351 @@ export default function Login() {
     },
   });
 
-  const handleRoleSelect = (role) => {
-    setSelectedRole(role);
-    if (role === 'officer') {
-      setValues({
-        email: 'officer@loanlens.ai',
-        password: 'Password123!',
-      });
-    } else {
-      setValues({
-        email: 'rohit.sharma@example.com',
-        password: 'Password123!',
-      });
-    }
+  const handleSwitchToOfficer = () => {
+    setActivePortal('officer');
+    setValues({
+      email: 'officer@loanlens.ai',
+      password: 'Password123!',
+    });
+  };
+
+  const handleSwitchToApplicant = () => {
+    setActivePortal('applicant');
+    setValues({
+      email: 'rohit.sharma@example.com',
+      password: 'Password123!',
+    });
   };
 
   return (
-    <div className="min-h-screen bg-navy-950 text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans">
-      {/* Ambient background glow effects */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen w-full flex flex-col lg:flex-row font-sans bg-white">
+      
+      {/* ─────────────────────────────────────────────────────────────
+          LEFT SIDE: Dark Navy Hero & Feature Showcase (Exact Structure)
+          ───────────────────────────────────────────────────────────── */}
+      <div className="w-full lg:w-[54%] bg-gradient-to-br from-navy-950 via-[#0A192F] to-[#0D2137] text-white p-8 lg:p-14 flex flex-col justify-between relative overflow-hidden border-r border-slate-800">
+        
+        {/* Subtle Ambient Radial Glow */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Top Navbar Brand */}
-      <header className="relative z-10 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
-        <Link to={ROUTES.HOME} className="flex items-center gap-3 group">
-          <span className="w-10 h-10 rounded-xl bg-emerald-500 grid place-items-center shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-            <Aperture className="w-5 h-5 text-navy-900" />
-          </span>
-          <div>
-            <span className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">
-              LoanLens <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">AI</span>
-            </span>
-            <span className="text-[11px] text-slate-400 block -mt-0.5">Credit Intelligence & Underwriting</span>
-          </div>
-        </Link>
-
-        <Link
-          to={ROUTES.HOME}
-          className="text-xs font-semibold text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900"
-        >
-          ← Back to Overview
-        </Link>
-      </header>
-
-      {/* Main Container */}
-      <main className="relative z-10 flex-1 max-w-7xl mx-auto w-full px-6 py-8 flex items-center justify-center">
-        <div className="w-full grid lg:grid-cols-12 gap-12 items-center">
-          
-          {/* Left Column: Brand & Feature Showcase (Matches Post-Login System) */}
-          <div className="lg:col-span-7 space-y-8 hidden md:block">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900/80 border border-slate-800 text-xs font-semibold text-emerald-400 shadow-xs backdrop-blur-md">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                Next-Gen Hybrid RAG Underwriting Platform
-              </div>
-              <h1 className="text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight">
-                Intelligent loan verification, <br />
-                <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-indigo-400 bg-clip-text text-transparent">
-                  grounded in real bank policies.
-                </span>
-              </h1>
-              <p className="text-slate-400 text-base max-w-xl leading-relaxed">
-                Empowering loan officers and applicants with real-time OCR document intelligence, automated cross-validation, and instant policy-grounded RAG reasoning.
-              </p>
-            </div>
-
-            {/* Feature Highlights (Consistent with App Functionality) */}
-            <div className="grid sm:grid-cols-3 gap-4 pt-2">
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
-                  <Brain className="w-4 h-4" />
-                </div>
-                <h4 className="text-sm font-bold text-white">Hybrid RAG Assistant</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Real-time vector search across 14 bank policy clauses and rule sets.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <h4 className="text-sm font-bold text-white">Fraud & KYC Shield</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Deterministic cross-document validation across PAN, Aadhaar & payslips.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-sm space-y-2">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center">
-                  <Building className="w-4 h-4" />
-                </div>
-                <h4 className="text-sm font-bold text-white">Multi-Bank Engine</h4>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  Personal, Home, Business, LAP & Education loans for top Indian lenders.
-                </p>
+        {/* Top Header / Brand Logo */}
+        <div className="relative z-10">
+          <Link to={ROUTES.HOME} className="inline-flex items-center gap-3.5 group">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 p-0.5 shadow-lg shadow-cyan-500/20 group-hover:scale-105 transition-transform">
+              <div className="w-full h-full bg-navy-950 rounded-[10px] flex items-center justify-center">
+                <Aperture className="w-6 h-6 text-cyan-400" />
               </div>
             </div>
-
-            {/* Live System Status Pill */}
-            <div className="flex items-center gap-3 pt-2">
-              <div className="flex -space-x-2">
-                <div className="w-7 h-7 rounded-full bg-blue-600 border-2 border-navy-950 flex items-center justify-center text-[10px] font-bold text-white">HDFC</div>
-                <div className="w-7 h-7 rounded-full bg-sky-600 border-2 border-navy-950 flex items-center justify-center text-[10px] font-bold text-white">SBI</div>
-                <div className="w-7 h-7 rounded-full bg-amber-600 border-2 border-navy-950 flex items-center justify-center text-[10px] font-bold text-white">ICICI</div>
-                <div className="w-7 h-7 rounded-full bg-rose-600 border-2 border-navy-950 flex items-center justify-center text-[10px] font-bold text-white">AXIS</div>
-              </div>
-              <span className="text-xs text-slate-400 font-medium">
-                Integrated with 6 major banking partners & Groq LPU engine.
+            <div>
+              <span className="text-2xl font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
+                LoanLens <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">AI</span>
+              </span>
+              <span className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mt-1 block">
+                FOR CREDIT & UNDERWRITING INTELLIGENCE
               </span>
             </div>
+          </Link>
+
+          {/* Sub-tag */}
+          <div className="mt-10">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-cyan-400 mb-3">
+              AI-POWERED LOAN PLATFORM
+            </p>
+
+            {/* Prominent Large Headline in Glass Box */}
+            <div className="inline-block p-4 sm:p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md shadow-2xl">
+              <h1 className="text-3xl sm:text-4xl lg:text-[42px] font-black uppercase tracking-tight text-white leading-none">
+                YOUR LOAN. YOUR FUTURE.
+              </h1>
+            </div>
+
+            {/* Paragraph Description */}
+            <p className="text-slate-300 text-sm sm:text-[15px] leading-relaxed mt-6 max-w-lg">
+              Every document you submit is verified with bank-grade AI accuracy. Join thousands securing faster loan approvals with real-time policy underwriting.
+            </p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-400/90 mt-3">
+              VERIFY · EVALUATE · APPROVE
+            </p>
+          </div>
+        </div>
+
+        {/* Middle: 3 Feature Cards in Vertical Stack (Matching Reference) */}
+        <div className="relative z-10 my-8 space-y-3.5">
+          {/* Card 1 */}
+          <div className="p-4 rounded-xl bg-slate-900/50 hover:bg-slate-900/70 border border-slate-800/80 backdrop-blur-sm transition-all duration-200 flex items-start gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+              <Brain className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white leading-tight">Hybrid RAG Policy Assistant</h4>
+              <p className="text-xs text-slate-400 mt-1 leading-snug">
+                Ask loan officer questions grounded in 14 indexed bank policy clauses
+              </p>
+            </div>
           </div>
 
-          {/* Right Column: High-End Glassmorphic Sign In Card */}
-          <div className="lg:col-span-5 w-full max-w-md mx-auto">
-            <div className="bg-slate-900/95 border border-slate-800/90 rounded-2xl p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden">
-              
-              {/* Card Header */}
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-white tracking-tight">
-                  Sign In to Workspace
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Access your underwriting dashboard or applicant status
-                </p>
-              </div>
+          {/* Card 2 */}
+          <div className="p-4 rounded-xl bg-slate-900/50 hover:bg-slate-900/70 border border-slate-800/80 backdrop-blur-sm transition-all duration-200 flex items-start gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 mt-0.5">
+              <FileCheck2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white leading-tight">Cross-Document Verification</h4>
+              <p className="text-xs text-slate-400 mt-1 leading-snug">
+                Automated OCR cross-checks across PAN, Aadhaar, Payslips & Bank Statements
+              </p>
+            </div>
+          </div>
 
-              {/* Role Selection Switcher (Quick-fill pre-configured accounts) */}
-              <div className="mb-6">
-                <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
-                  Select Role & Test Account
-                </label>
-                <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950/80 rounded-xl border border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => handleRoleSelect('officer')}
-                    className={`
-                      flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200
-                      ${selectedRole === 'officer'
-                        ? 'bg-emerald-500 text-navy-950 shadow-md font-bold'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }
-                    `}
-                  >
-                    <Briefcase className="w-3.5 h-3.5" />
-                    Loan Officer
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleRoleSelect('applicant')}
-                    className={`
-                      flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200
-                      ${selectedRole === 'applicant'
-                        ? 'bg-emerald-500 text-navy-950 shadow-md font-bold'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }
-                    `}
-                  >
-                    <UserCheck className="w-3.5 h-3.5" />
-                    Applicant
-                  </button>
-                </div>
-              </div>
-
-              {/* Form */}
-              <form onSubmit={handleSubmit} noValidate className="space-y-4">
-                
-                {/* Email Input */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <Mail className="w-4 h-4" />
-                    </div>
-                    <input
-                      name="email"
-                      type="email"
-                      value={values.email}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="you@loanlens.ai"
-                      autoComplete="email"
-                      className={`
-                        w-full pl-10 pr-4 py-2.5 bg-slate-950/70 border rounded-xl text-sm text-white placeholder-slate-500
-                        focus:outline-none focus:ring-2 transition-all duration-200
-                        ${touched.email && errors.email
-                          ? 'border-red-500 focus:ring-red-500/30'
-                          : 'border-slate-800 focus:border-emerald-500 focus:ring-emerald-500/20'
-                        }
-                      `}
-                    />
-                  </div>
-                  {touched.email && errors.email && (
-                    <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.email}</p>
-                  )}
-                </div>
-
-                {/* Password Input */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-semibold text-slate-300">
-                      Password
-                    </label>
-                    <span className="text-[11px] text-slate-500">Default: Password123!</span>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                      <Lock className="w-4 h-4" />
-                    </div>
-                    <input
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={values.password}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="••••••••••••"
-                      autoComplete="current-password"
-                      className={`
-                        w-full pl-10 pr-10 py-2.5 bg-slate-950/70 border rounded-xl text-sm text-white placeholder-slate-500
-                        focus:outline-none focus:ring-2 transition-all duration-200
-                        ${touched.password && errors.password
-                          ? 'border-red-500 focus:ring-red-500/30'
-                          : 'border-slate-800 focus:border-emerald-500 focus:ring-emerald-500/20'
-                        }
-                      `}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {touched.password && errors.password && (
-                    <p className="text-[11px] text-red-400 mt-1 font-medium">{errors.password}</p>
-                  )}
-                </div>
-
-                {/* Error Banner */}
-                {submitError && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium animate-fade-in flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-                    {submitError}
-                  </div>
-                )}
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className={`
-                    w-full mt-2 py-3 px-4 rounded-xl text-sm font-bold text-navy-950 bg-emerald-500 hover:bg-emerald-400
-                    shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all duration-200
-                    flex items-center justify-center gap-2 cursor-pointer
-                    ${isSubmitting ? 'opacity-80 cursor-not-allowed' : 'active:scale-[0.99]'}
-                  `}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-navy-950 border-t-transparent rounded-full animate-spin" />
-                      Authenticating...
-                    </>
-                  ) : (
-                    <>
-                      Sign In as {selectedRole === 'officer' ? 'Loan Officer' : 'Applicant'}
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </form>
-
-              {/* Registration Link */}
-              <div className="mt-6 pt-5 border-t border-slate-800/80 text-center">
-                <p className="text-xs text-slate-400">
-                  New to LoanLens?{' '}
-                  <Link
-                    to={ROUTES.REGISTER}
-                    className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
-                  >
-                    Create Applicant Account
-                  </Link>
-                </p>
-              </div>
-
-              {/* Security Tag */}
-              <div className="mt-4 flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                <span>256-Bit SSL Encrypted • ISO 27001 Certified</span>
-              </div>
+          {/* Card 3 */}
+          <div className="p-4 rounded-xl bg-slate-900/50 hover:bg-slate-900/70 border border-slate-800/80 backdrop-blur-sm transition-all duration-200 flex items-start gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+              <PieChart className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white leading-tight">FOIR & Debt-Burden Engine</h4>
+              <p className="text-xs text-slate-400 mt-1 leading-snug">
+                Instant debt capacity calculations, proposed EMI & max sanction limits
+              </p>
             </div>
           </div>
         </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-4 text-center text-xs text-slate-500 border-t border-slate-800/50">
-        LoanLens AI Underwriting Platform © {new Date().getFullYear()}. All bank policies strictly grounded via Vector RAG.
-      </footer>
+        {/* Bottom Section: Live Activity Ticker & Micro-Trust Badges */}
+        <div className="relative z-10 pt-4 border-t border-slate-800/60">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-300">Live Verifications</span>
+          </div>
+
+          {/* Scrolling / Live Ticker Items */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-400 font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Personal Loan · <strong className="text-slate-200 font-semibold">HDFC Bank</strong> · <span className="text-emerald-400">Approved ₹15L</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              Home Loan · <strong className="text-slate-200 font-semibold">SBI</strong> · <span className="text-amber-400">In Review (FOIR 42%)</span>
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+              Vehicle Loan · <strong className="text-slate-200 font-semibold">ICICI</strong> · <span className="text-cyan-400">Verified in 2m</span>
+            </span>
+          </div>
+
+          {/* Footer Security Badges */}
+          <div className="flex items-center gap-5 mt-4 pt-3 border-t border-slate-800/40 text-[11px] text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Secure 256-Bit SSL
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-cyan-400" /> Zero Data Selling
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-amber-400" /> Instant Policy RAG
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          RIGHT SIDE: Crisp White Sign-In Form (Exact Layout Structure)
+          ───────────────────────────────────────────────────────────── */}
+      <div className="w-full lg:w-[46%] bg-white p-8 lg:p-14 flex flex-col justify-between">
+        
+        {/* Top Header / Language Picker */}
+        <div className="flex justify-end items-center">
+          <div className="relative">
+            <button
+              type="button"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
+            >
+              <span>{selectedLang}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+          </div>
+        </div>
+
+        {/* Main Sign In Box */}
+        <div className="max-w-md w-full mx-auto my-auto py-6">
+          
+          {/* Top Blue Device / Key Icon */}
+          <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 mb-6 shadow-2xs">
+            <Smartphone className="w-6 h-6" />
+          </div>
+
+          {/* Heading */}
+          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            Sign in
+          </h2>
+          <p className="text-sm text-slate-500 mt-1 mb-8">
+            {activePortal === 'officer'
+              ? 'Enter your bank credentials to access the loan underwriting workspace.'
+              : 'Enter your email & password to access your loan application.'}
+          </p>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} noValidate className="space-y-5">
+            
+            {/* Email / Mobile Input (with Prefix Tag matching reference) */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                EMAIL ADDRESS / USERNAME
+              </label>
+              
+              <div className="flex rounded-xl border border-slate-300 focus-within:border-indigo-600 focus-within:ring-3 focus-within:ring-indigo-500/10 transition-all overflow-hidden shadow-2xs">
+                <div className="bg-slate-50 px-3.5 py-3 border-r border-slate-200 flex items-center gap-1 text-xs font-bold text-slate-600 shrink-0">
+                  <span>IN</span>
+                  <span className="text-slate-400 font-normal">@</span>
+                </div>
+                <input
+                  name="email"
+                  type="email"
+                  value={values.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  className="w-full px-3.5 py-3 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none bg-white"
+                />
+              </div>
+
+              {touched.email && errors.email && (
+                <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.email}</p>
+              )}
+            </div>
+
+            {/* Password Input */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                  PASSWORD
+                </label>
+                <span className="text-xs text-slate-400 font-medium">Default: Password123!</span>
+              </div>
+              
+              <div className="relative rounded-xl border border-slate-300 focus-within:border-indigo-600 focus-within:ring-3 focus-within:ring-indigo-500/10 transition-all overflow-hidden shadow-2xs">
+                <input
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={values.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="••••••••••••"
+                  autoComplete="current-password"
+                  className="w-full px-3.5 py-3 pr-10 text-sm font-medium text-slate-900 placeholder-slate-400 focus:outline-none bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {touched.password && errors.password && (
+                <p className="text-xs text-red-500 mt-1.5 font-medium">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Submit Error */}
+            {submitError && (
+              <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-medium animate-fade-in flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                {submitError}
+              </div>
+            )}
+
+            {/* Continue Button (Gradient Pill matching reference) */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`
+                w-full py-3.5 px-6 rounded-xl text-sm font-bold text-white
+                bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700
+                shadow-md shadow-indigo-500/20 hover:shadow-lg hover:shadow-indigo-500/30 transition-all duration-200
+                flex items-center justify-center gap-2 cursor-pointer
+                ${isSubmitting ? 'opacity-80 cursor-not-allowed' : 'active:scale-[0.99]'}
+              `}
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                <>
+                  Continue <ArrowRight className="w-4 h-4 ml-1" />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Terms Agreement Note (Matching Reference) */}
+          <p className="text-center text-xs text-slate-400 mt-5">
+            By continuing you agree to our{' '}
+            <a href="#terms" className="text-indigo-600 hover:underline font-semibold">Terms of Service</a>
+            {' '}and{' '}
+            <a href="#privacy" className="text-indigo-600 hover:underline font-semibold">Privacy Policy</a>
+          </p>
+
+          {/* ─────────────────────────────────────────────────────────────
+              Divider / Official Portal Access Button (Matching Reference)
+              ───────────────────────────────────────────────────────────── */}
+          <div className="mt-8 pt-6 border-t border-slate-100">
+            {activePortal === 'applicant' ? (
+              <div className="text-center">
+                <p className="text-xs text-slate-500 mb-3 font-medium">
+                  Are you a bank loan officer?
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSwitchToOfficer}
+                  className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 shadow-2xs group"
+                >
+                  <Shield className="w-4 h-4 text-indigo-600 group-hover:scale-110 transition-transform" />
+                  Access Loan Officer Portal
+                </button>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-xs text-slate-500 mb-3 font-medium">
+                  Are you a loan applicant?
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSwitchToApplicant}
+                  className="w-full py-3 px-4 rounded-xl border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold transition-all duration-200 flex items-center justify-center gap-2 shadow-2xs group"
+                >
+                  <UserCheck className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  Access Applicant Portal
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Registration Link */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-slate-500">
+              Don&apos;t have an account?{' '}
+              <Link
+                to={ROUTES.REGISTER}
+                className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline transition-colors ml-1"
+              >
+                Apply as a New Customer
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Spacer / Subtle Copyright */}
+        <div className="text-center text-[11px] text-slate-400 py-2">
+          LoanLens AI Underwriting Engine © {new Date().getFullYear()}
+        </div>
+      </div>
     </div>
   );
 }
