@@ -25,17 +25,18 @@ import {
   Fingerprint,
 } from 'lucide-react';
 import { officerService } from '../../services/officerService';
+import { useToast } from '../../context/ToastContext';
 
 /* ───────── Utility Sub-Components ───────── */
 
 const StatusIcon = ({ status, size = 'w-5 h-5' }) => {
   switch (status) {
     case 'PASSED':
-      return <CheckCircle2 className={`${size} text-emerald-600 shrink-0`} />;
+      return <CheckCircle2 className={`${size} text-success-600 shrink-0`} />;
     case 'WARNING':
-      return <AlertTriangle className={`${size} text-amber-500 shrink-0`} />;
+      return <AlertTriangle className={`${size} text-warning-500 shrink-0`} />;
     case 'FLAGGED':
-      return <XCircle className={`${size} text-rose-600 shrink-0`} />;
+      return <XCircle className={`${size} text-error-600 shrink-0`} />;
     default:
       return <Info className={`${size} text-charcoal-400 shrink-0`} />;
   }
@@ -44,9 +45,9 @@ const StatusIcon = ({ status, size = 'w-5 h-5' }) => {
 const SeverityBadge = ({ severity }) => {
   const sev = (severity || 'LOW').toUpperCase();
   const styles = {
-    HIGH: 'bg-rose-50 text-rose-700 border-rose-200',
-    MEDIUM: 'bg-amber-50 text-amber-700 border-amber-200',
-    LOW: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    HIGH: 'bg-error-50 text-error-700 border-error-200',
+    MEDIUM: 'bg-warning-50 text-warning-700 border-warning-200',
+    LOW: 'bg-success-50 text-success-700 border-success-200',
   };
   return (
     <span
@@ -62,9 +63,9 @@ const SeverityBadge = ({ severity }) => {
 const RiskBadge = ({ riskLevel }) => {
   const risk = (riskLevel || 'LOW').toUpperCase();
   const styles = {
-    HIGH: 'bg-rose-100 text-rose-800 border-rose-300',
-    MEDIUM: 'bg-amber-100 text-amber-800 border-amber-300',
-    LOW: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    HIGH: 'bg-error-100 text-error-700 border-error-200',
+    MEDIUM: 'bg-warning-100 text-warning-700 border-warning-200',
+    LOW: 'bg-success-100 text-success-700 border-success-200',
   };
   return (
     <span
@@ -80,9 +81,9 @@ const RiskBadge = ({ riskLevel }) => {
 
 const ActionBadge = ({ action }) => {
   const labels = {
-    APPROVE_RECOMMENDED: { label: 'Eligible for Standard Approval', color: 'bg-emerald-600 text-white' },
-    MANUAL_REVIEW: { label: 'Manual Officer Review Recommended', color: 'bg-amber-600 text-white' },
-    REQUEST_ADDITIONAL_DOCS: { label: 'Request Additional Documents', color: 'bg-blue-600 text-white' },
+    APPROVE_RECOMMENDED: { label: 'Eligible for Standard Approval', color: 'bg-success-600 text-white' },
+    MANUAL_REVIEW: { label: 'Manual Officer Review Recommended', color: 'bg-warning-600 text-white' },
+    REQUEST_ADDITIONAL_DOCS: { label: 'Request Additional Documents', color: 'bg-accent-600 text-white' },
   };
   const item = labels[action] || { label: (action || 'Manual Review').replace(/_/g, ' '), color: 'bg-charcoal-800 text-white' };
   return (
@@ -226,16 +227,16 @@ const ScoreCircle = ({ score }) => {
 
   let colorClass, bgGlow, label;
   if (numScore >= 80) {
-    colorClass = 'text-emerald-500';
-    bgGlow = 'shadow-emerald-100';
+    colorClass = 'text-success-500';
+    bgGlow = 'shadow-success-100';
     label = 'Consistent';
   } else if (numScore >= 60) {
-    colorClass = 'text-amber-500';
-    bgGlow = 'shadow-amber-100';
+    colorClass = 'text-warning-500';
+    bgGlow = 'shadow-warning-100';
     label = 'Needs Attention';
   } else {
-    colorClass = 'text-rose-500';
-    bgGlow = 'shadow-rose-100';
+    colorClass = 'text-error-500';
+    bgGlow = 'shadow-error-100';
     label = 'Needs Attention';
   }
 
@@ -268,7 +269,7 @@ const ScoreCircle = ({ score }) => {
 
 /* ───────── Stats Row ───────── */
 
-const StatsRow = ({ checks, documentsCount = 4 }) => {
+const StatsRow = ({ checks, documentsCount = 0 }) => {
   if (!checks || checks.length === 0) return null;
 
   const total = checks.length;
@@ -282,7 +283,7 @@ const StatsRow = ({ checks, documentsCount = 4 }) => {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <div className="bg-white rounded-xl border border-cream-200 p-4 flex items-center gap-3 shadow-sm">
-        <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-lg bg-accent-50 text-accent-600 flex items-center justify-center shrink-0">
           <FileText className="w-5 h-5" />
         </div>
         <div>
@@ -292,7 +293,7 @@ const StatsRow = ({ checks, documentsCount = 4 }) => {
       </div>
 
       <div className="bg-white rounded-xl border border-cream-200 p-4 flex items-center gap-3 shadow-sm">
-        <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-lg bg-success-50 text-success-600 flex items-center justify-center shrink-0">
           <BarChart3 className="w-5 h-5" />
         </div>
         <div>
@@ -302,21 +303,31 @@ const StatsRow = ({ checks, documentsCount = 4 }) => {
       </div>
 
       <div className="bg-white rounded-xl border border-cream-200 p-4 flex items-center gap-3 shadow-sm">
-        <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-lg bg-success-50 text-success-600 flex items-center justify-center shrink-0">
           <CheckCircle2 className="w-5 h-5" />
         </div>
         <div>
-          <p className="text-xl font-black text-emerald-600">{passed}</p>
+          <p className="text-xl font-black text-success-600">{passed}</p>
           <p className="text-[11px] text-charcoal-500 font-medium">{passedPct}% Passed</p>
         </div>
       </div>
 
       <div className="bg-white rounded-xl border border-cream-200 p-4 flex items-center gap-3 shadow-sm">
-        <div className="w-10 h-10 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+        <div
+          className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+            discrepancies > 0 ? 'bg-error-50 text-error-600' : 'bg-cream-100 text-charcoal-400'
+          }`}
+        >
           <XCircle className="w-5 h-5" />
         </div>
         <div>
-          <p className="text-xl font-black text-rose-600">{discrepancies}</p>
+          <p
+            className={`text-xl font-black ${
+              discrepancies > 0 ? 'text-error-600' : 'text-charcoal-900'
+            }`}
+          >
+            {discrepancies}
+          </p>
           <p className="text-[11px] text-charcoal-500 font-medium">{failedPct}% Failed</p>
         </div>
       </div>
@@ -498,9 +509,9 @@ const ExtractedDataTable = ({ checks, documents, app }) => {
 
                   <td className={`py-3.5 px-4 font-semibold ${
                     row.type === 'Full Name' && row.isMismatch && row.salarySlip !== '-' && row.salarySlip.trim().toLowerCase() !== refName
-                      ? 'text-rose-600'
+                      ? 'text-error-600'
                       : row.type === 'Declared Income' && row.isMismatch
-                      ? 'text-rose-600'
+                      ? 'text-error-600'
                       : 'text-charcoal-800'
                   }`}>
                     {row.salarySlip}
@@ -508,9 +519,9 @@ const ExtractedDataTable = ({ checks, documents, app }) => {
 
                   <td className={`py-3.5 px-4 font-semibold ${
                     row.type === 'Full Name' && row.isMismatch && row.bankStatement !== '-' && row.bankStatement.trim().toLowerCase() !== refName
-                      ? 'text-rose-600'
+                      ? 'text-error-600'
                       : row.type === 'Bank Salary Credit' && row.isMismatch
-                      ? 'text-rose-600'
+                      ? 'text-error-600'
                       : 'text-charcoal-800'
                   }`}>
                     {row.bankStatement}
@@ -520,15 +531,15 @@ const ExtractedDataTable = ({ checks, documents, app }) => {
                     {row.statusBadge === '-' ? (
                       <span className="text-charcoal-400 font-semibold">-</span>
                     ) : row.statusBadge === 'Match' ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-success-50 text-success-700 border border-success-200">
                         Match
                       </span>
                     ) : row.statusBadge === 'Warning' ? (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-warning-50 text-warning-700 border border-warning-200">
                         Warning
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold bg-error-50 text-error-700 border border-error-200">
                         Mismatch
                       </span>
                     )}
@@ -602,9 +613,9 @@ const VerificationResults = ({ checks }) => {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {[
-              { key: 'all', label: `All (${allItems.length})`, style: 'bg-emerald-700 text-white' },
-              { key: 'passed', label: `Passed (${passedCount})`, style: 'bg-emerald-50 text-emerald-700' },
-              { key: 'failed', label: `Failed (${failedCount + warningCount})`, style: 'bg-rose-50 text-rose-700' },
+              { key: 'all', label: `All (${allItems.length})`, style: 'bg-success-700 text-white' },
+              { key: 'passed', label: `Passed (${passedCount})`, style: 'bg-success-50 text-success-700' },
+              { key: 'failed', label: `Failed (${failedCount + warningCount})`, style: 'bg-error-50 text-error-700' },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -648,9 +659,9 @@ const VerificationResults = ({ checks }) => {
                 key={idx}
                 className={`transition-all ${
                   check.status === 'FLAGGED'
-                    ? 'bg-rose-50/15'
+                    ? 'bg-error-50/15'
                     : check.status === 'WARNING'
-                    ? 'bg-amber-50/15'
+                    ? 'bg-warning-50/15'
                     : ''
                 }`}
               >
@@ -691,10 +702,10 @@ const VerificationResults = ({ checks }) => {
                       <span
                         className={`text-xs font-bold block ${
                           check.status === 'FLAGGED'
-                            ? 'text-rose-600'
+                            ? 'text-error-600'
                             : check.status === 'WARNING'
-                            ? 'text-amber-600'
-                            : 'text-emerald-600'
+                            ? 'text-warning-600'
+                            : 'text-success-600'
                         }`}
                       >
                         {check.status === 'FLAGGED' ? 'Failed' : check.status === 'WARNING' ? 'Warning' : 'Passed'}
@@ -741,21 +752,38 @@ const VerificationResults = ({ checks }) => {
 
 /* ───────── AI Analysis Summary Card ───────── */
 
-const AISummaryCard = ({ data }) => {
-  const keyFindings = data.keyFindings?.length ? data.keyFindings : [
-    'Name mismatch detected across documents',
-    'Income declared is higher than bank credits',
-    'No regular salary credits found in bank',
-    'Multiple high-risk discrepancies identified',
-  ];
+const AISummaryCard = ({ data, riskLevel = 'LOW', flaggedCount = 0 }) => {
+  const checks = data.checks || [];
+  const warningCount = checks.filter((c) => c.status === 'WARNING').length;
 
-  const riskLevel = (data.riskLevel || 'HIGH').toUpperCase();
+  // Fall back to findings derived from the checks themselves. The previous
+  // fallback was a fixed list of failures, which contradicted a clean result.
+  const derivedFindings = checks
+    .filter((c) => c.status === 'FLAGGED' || c.status === 'WARNING')
+    .slice(0, 4)
+    .map((c) => c.message || c.label || c.field || 'Discrepancy detected');
+
+  const keyFindings = data.keyFindings?.length
+    ? data.keyFindings
+    : derivedFindings.length
+      ? derivedFindings
+      : ['No discrepancies found across the submitted documents'];
+
+  const risk = (riskLevel || 'LOW').toUpperCase();
   const riskColors = {
-    HIGH: { text: 'text-rose-600', bar: 'bg-rose-500' },
-    MEDIUM: { text: 'text-amber-600', bar: 'bg-amber-500' },
-    LOW: { text: 'text-emerald-600', bar: 'bg-emerald-500' },
+    HIGH: { text: 'text-error-600', label: 'High Risk' },
+    MEDIUM: { text: 'text-warning-600', label: 'Medium Risk' },
+    LOW: { text: 'text-success-600', label: 'Low Risk' },
   };
-  const rc = riskColors[riskLevel] || riskColors.HIGH;
+  const rc = riskColors[risk] || riskColors.LOW;
+
+  const recommendation =
+    data.recommendationNote ||
+    (flaggedCount > 0
+      ? 'Manual review required. Please verify applicant information and income documents before proceeding.'
+      : warningCount > 0
+        ? 'Minor inconsistencies flagged. Confirm the highlighted fields before approving.'
+        : 'All cross-document checks passed. The application is eligible to proceed to the next stage.');
 
   return (
     <div className="bg-white border border-cream-300 rounded-2xl shadow-soft overflow-hidden">
@@ -789,30 +817,73 @@ const AISummaryCard = ({ data }) => {
         {/* Column 2: Risk Assessment */}
         <div className="md:px-6 space-y-3">
           <h4 className="text-xs font-bold text-charcoal-900 uppercase tracking-wider">Risk Assessment</h4>
-          <p className={`text-2xl font-black ${rc.text}`}>{riskLevel === 'HIGH' ? 'High Risk' : riskLevel === 'MEDIUM' ? 'Medium Risk' : 'Low Risk'}</p>
+          <p className={`text-2xl font-black ${rc.text}`}>{rc.label}</p>
           <p className="text-xs text-charcoal-500 font-medium">
-            Based on {(data.checks || []).filter(c => c.status === 'FLAGGED').length || 2} critical discrepancies
+            {flaggedCount > 0
+              ? `Based on ${flaggedCount} critical discrepanc${flaggedCount === 1 ? 'y' : 'ies'}`
+              : warningCount > 0
+                ? `Based on ${warningCount} minor inconsistenc${warningCount === 1 ? 'y' : 'ies'}`
+                : `Based on ${checks.length} passing check${checks.length === 1 ? '' : 's'}`}
           </p>
 
-          {/* Color Bar Meter */}
-          <div className="w-full h-2 rounded-full overflow-hidden flex mt-3">
-            <div className="bg-emerald-500 w-1/3" />
-            <div className="bg-amber-500 w-1/3" />
-            <div className="bg-rose-500 w-1/3" />
+          {/* Risk Meter */}
+          <div className="w-full h-2 rounded-full overflow-hidden flex mt-3 bg-cream-200">
+            <div className={`w-1/3 ${risk === 'LOW' ? 'bg-success-500' : 'bg-cream-300'}`} />
+            <div className={`w-1/3 ${risk === 'MEDIUM' ? 'bg-warning-500' : 'bg-cream-300'}`} />
+            <div className={`w-1/3 ${risk === 'HIGH' ? 'bg-error-500' : 'bg-cream-300'}`} />
           </div>
         </div>
 
         {/* Column 3: Recommendation */}
         <div className="md:pl-6 space-y-3">
           <h4 className="text-xs font-bold text-charcoal-900 uppercase tracking-wider">Recommendation</h4>
-          <p className="text-xs text-charcoal-700 leading-relaxed font-medium">
-            Manual review required. Please verify applicant information and income documents before proceeding.
-          </p>
+          <p className="text-xs text-charcoal-700 leading-relaxed font-medium">{recommendation}</p>
         </div>
       </div>
     </div>
   );
 };
+
+/* ───────── Banner State ───────── */
+
+/**
+ * The headline banner reflects what the checks actually found. It used to be
+ * hardcoded to the failure state, so a completely clean application still
+ * announced "Cross-Document Discrepancies Detected".
+ */
+function getBannerState(flaggedCount, warningCount, totalChecks) {
+  if (flaggedCount > 0) {
+    return {
+      tone: 'error',
+      shell: 'border-error-200 bg-gradient-to-r from-error-50/70 via-white to-warning-50/40',
+      iconClass: 'text-error-500',
+      title: 'Cross-Document Discrepancies Detected',
+      detail: `${flaggedCount} high severity issue${flaggedCount === 1 ? '' : 's'} require${
+        flaggedCount === 1 ? 's' : ''
+      } manual review`,
+    };
+  }
+
+  if (warningCount > 0) {
+    return {
+      tone: 'warning',
+      shell: 'border-warning-200 bg-gradient-to-r from-warning-50/70 via-white to-cream-50',
+      iconClass: 'text-warning-500',
+      title: 'Minor Inconsistencies Found',
+      detail: `${warningCount} item${warningCount === 1 ? '' : 's'} to confirm — no critical mismatches detected`,
+    };
+  }
+
+  return {
+    tone: 'success',
+    shell: 'border-success-200 bg-gradient-to-r from-success-50/70 via-white to-cream-50',
+    iconClass: 'text-success-500',
+    title: 'All Cross-Document Checks Passed',
+    detail: totalChecks
+      ? `${totalChecks} check${totalChecks === 1 ? '' : 's'} completed with no discrepancies`
+      : 'No discrepancies found across the submitted documents',
+  };
+}
 
 /* ───────── Main VerificationTab Component ───────── */
 
@@ -820,6 +891,7 @@ const VerificationTab = ({ applicationId, app, documents }) => {
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
   const [data, setData] = useState(null);
+  const toast = useToast();
 
   useEffect(() => {
     fetchValidation();
@@ -842,9 +914,10 @@ const VerificationTab = ({ applicationId, app, documents }) => {
       setVerifying(true);
       const res = await officerService.triggerVerification(applicationId);
       setData(res.data || res);
+      toast.success('Cross-document verification completed.');
     } catch (err) {
       console.error('Verification failed:', err);
-      alert('Verification re-run failed: ' + (err.message || 'Unknown error'));
+      toast.error(err.message || 'Unknown error', { title: 'Verification re-run failed' });
     } finally {
       setVerifying(false);
     }
@@ -887,25 +960,50 @@ const VerificationTab = ({ applicationId, app, documents }) => {
   const isReviewRequired = data.status === 'REVIEW_REQUIRED';
   const docsList = documents || app?.documents || [];
 
+  const checks = data.checks || [];
+  const flaggedCount = checks.filter((c) => c.status === 'FLAGGED').length;
+  const warningCount = checks.filter((c) => c.status === 'WARNING').length;
+  const banner = getBannerState(flaggedCount, warningCount, checks.length);
+
+  // Derive risk and score from the checks when the backend hasn't supplied them,
+  // instead of defaulting to HIGH / 72 regardless of the result.
+  const riskLevel =
+    data.riskLevel || (flaggedCount > 0 ? 'HIGH' : warningCount > 0 ? 'MEDIUM' : 'LOW');
+  const verificationScore =
+    data.verificationScore ??
+    (checks.length
+      ? Math.max(
+          0,
+          Math.round(((checks.length - flaggedCount - warningCount * 0.5) / checks.length) * 100)
+        )
+      : 100);
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* 1. Top Banner + Overall Verification Score */}
-      <div className="p-6 rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50/70 via-white to-amber-50/40 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div
+        className={`p-6 rounded-2xl border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 ${banner.shell}`}
+      >
         <div className="space-y-2 flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider bg-white border border-charcoal-300 text-charcoal-700 shadow-2xs">
               {isStale ? 'Status Outdated' : isConsistent ? 'Consistent' : isReviewRequired ? 'Under Review' : 'Incomplete'}
             </span>
-            <RiskBadge riskLevel={data.riskLevel || 'HIGH'} />
+            <RiskBadge riskLevel={riskLevel} />
           </div>
 
           <h2 className="text-xl font-extrabold text-charcoal-900 flex items-center gap-2 mt-1">
-            <AlertTriangle className="w-5 h-5 text-amber-500" /> Cross-Document Discrepancies Detected
+            {banner.tone === 'error' ? (
+              <XCircle className={`w-5 h-5 ${banner.iconClass}`} />
+            ) : banner.tone === 'warning' ? (
+              <AlertTriangle className={`w-5 h-5 ${banner.iconClass}`} />
+            ) : (
+              <ShieldCheck className={`w-5 h-5 ${banner.iconClass}`} />
+            )}
+            {banner.title}
           </h2>
 
-          <p className="text-sm text-charcoal-600 font-medium">
-            {(data.checks || []).filter(c => c.status === 'FLAGGED').length || 2} high severity issue(s) require manual review
-          </p>
+          <p className="text-sm text-charcoal-600 font-medium">{banner.detail}</p>
 
           <div className="pt-2">
             <button
@@ -920,24 +1018,24 @@ const VerificationTab = ({ applicationId, app, documents }) => {
         </div>
 
         {/* Score Circle */}
-        <ScoreCircle score={data.verificationScore ?? 72} />
+        <ScoreCircle score={verificationScore} />
       </div>
 
       {/* 2. Stats Row */}
-      <StatsRow checks={data.checks} documentsCount={docsList.length || 4} />
+      <StatsRow checks={checks} documentsCount={docsList.length} />
 
       {/* 3. Extracted Data Overview Table */}
-      <ExtractedDataTable checks={data.checks} documents={docsList} app={app} />
+      <ExtractedDataTable checks={checks} documents={docsList} app={app} />
 
       {/* 4. Verification Results */}
-      <VerificationResults checks={data.checks} />
+      <VerificationResults checks={checks} />
 
       {/* 5. AI Analysis Summary */}
-      <AISummaryCard data={data} />
+      <AISummaryCard data={data} riskLevel={riskLevel} flaggedCount={flaggedCount} />
 
       {/* 6. Footer Disclaimer */}
       <div className="p-4 bg-cream-50 rounded-xl border border-cream-200 flex items-start gap-3 text-xs text-charcoal-600">
-        <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+        <Info className="w-4 h-4 text-accent-500 shrink-0 mt-0.5" />
         <p className="leading-relaxed font-medium">
           Note: This analysis is AI-generated and recommended for officer review. Final decision rests with authorized personnel.
         </p>

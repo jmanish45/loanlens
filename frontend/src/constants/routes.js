@@ -4,6 +4,9 @@ export const ROUTES = {
   REGISTER: '/register',
   APPLICANT: '/applicant',
   APPLY: '/applicant/apply',
+  OFFICER: '/officer',
+  OFFICER_APPLICATIONS: '/officer/applications',
+  officerApplication: (id) => `/officer/applications/${id}`,
 };
 
 export const EXTERNAL_LINKS = {

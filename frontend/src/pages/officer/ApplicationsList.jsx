@@ -1,171 +1,366 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Search, Filter, Trash2 } from 'lucide-react';
-import PageHeader from '../../components/layout/PageHeader';
-import Card from '../../components/common/Card';
-import StatusBadge from '../../components/common/StatusBadge';
+import { useState, useMemo } from 'react';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
+import { Search, Trash2, ArrowRight, X, SlidersHorizontal, Clock } from 'lucide-react';
 import { officerService } from '../../services/officerService';
-import { LOAN_TYPES } from '../../constants/mockData';
+import { useToast } from '../../context/ToastContext';
+import { useConfirm } from '../../context/ConfirmContext';
+import BankLogo from '../../components/common/BankLogo';
+import { ROUTES } from '../../constants/routes';
+import { LOAN_TYPE_DETAILS } from '../../constants/banks';
+import {
+  statusMeta,
+  initialsOf,
+  bankFor,
+  loanTypeLabel,
+  daysWaiting,
+  waitingLabel,
+  formatDate,
+} from '../../lib/officerData';
+import { formatINR, formatINRCompact } from '../../lib/loanMath';
 
-function formatAmount(amount) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
-}
+const CARD = 'bg-white border border-slate-200 rounded-xl shadow-[0_1px_2px_0_rgba(15,23,42,0.04)]';
 
-function formatDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-}
+/** Statuses the officer list can contain — drafts never reach this endpoint. */
+const STATUS_CHIPS = [
+  { value: '', label: 'All' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'under_review', label: 'Under Review' },
+  { value: 'documents_required', label: 'Documents Required' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'withdrawn', label: 'Withdrawn' },
+];
 
 export default function ApplicationsList() {
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { applications, loading, removeApplication } = useOutletContext();
+  const [params, setParams] = useSearchParams();
+  const toast = useToast();
+  const confirm = useConfirm();
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
-  useEffect(() => {
-    const fetchApplications = async () => {
-      try {
-        const response = await officerService.getApplications();
-        setApplications(response.data);
-      } catch (error) {
-        console.error('Failed to load applications', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchApplications();
-  }, []);
+  // The status filter lives in the URL so sidebar queue links stay in sync.
+  const statusFilter = params.get('status') || '';
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this application and all associated documents permanently from MongoDB?')) {
-      return;
-    }
+  const setStatusFilter = (value) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set('status', value);
+    else next.delete('status');
+    setParams(next, { replace: true });
+  };
+
+  const counts = useMemo(() => {
+    const map = new Map();
+    applications.forEach((app) => map.set(app.status, (map.get(app.status) || 0) + 1));
+    return map;
+  }, [applications]);
+
+  const filtered = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return applications.filter((app) => {
+      const matchesSearch =
+        term === '' ||
+        app.applicant?.name?.toLowerCase().includes(term) ||
+        app.applicant?.email?.toLowerCase().includes(term) ||
+        String(app._id).toLowerCase().includes(term);
+      const matchesStatus = statusFilter ? app.status === statusFilter : true;
+      const matchesType = typeFilter ? app.loanType === typeFilter : true;
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [applications, searchTerm, statusFilter, typeFilter]);
+
+  const filteredValue = useMemo(
+    () => filtered.reduce((sum, app) => sum + (Number(app.requestedAmount) || 0), 0),
+    [filtered]
+  );
+
+  const hasFilters = Boolean(searchTerm || statusFilter || typeFilter);
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setTypeFilter('');
+    setStatusFilter('');
+  };
+
+  const handleDelete = async (app) => {
+    const ok = await confirm({
+      title: 'Delete this application?',
+      message:
+        'The application and every document uploaded against it will be permanently removed. This cannot be undone.',
+      detail: `${app.applicant?.name || 'Unknown applicant'} · ${app._id}`,
+      confirmLabel: 'Delete permanently',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
+    setDeletingId(app._id);
     try {
-      await officerService.deleteApplication(id);
-      setApplications((prev) => prev.filter((app) => app._id !== id));
+      await officerService.deleteApplication(app._id);
+      removeApplication(app._id);
+      toast.success('Application deleted.');
     } catch (error) {
-      alert('Failed to delete application: ' + error.message);
+      toast.error(error.message, { title: 'Delete failed' });
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const filteredApps = applications.filter((app) => {
-    const matchesSearch = app.applicant?.name?.toLowerCase().includes(searchTerm.toLowerCase()) || app._id.includes(searchTerm);
-    const matchesStatus = statusFilter ? app.status === statusFilter : true;
-    const matchesType = typeFilter ? app.loanType === typeFilter : true;
-    return matchesSearch && matchesStatus && matchesType;
-  });
-
   if (loading) {
-    return <div className="animate-pulse space-y-6">
-      <div className="h-10 bg-cream-300 w-1/4 rounded"></div>
-      <div className="h-96 bg-cream-300 rounded-lg"></div>
-    </div>;
+    return (
+      <div className="space-y-5 animate-pulse">
+        <div className="h-24 rounded-xl bg-slate-200" />
+        <div className="h-96 rounded-xl bg-slate-200" />
+      </div>
+    );
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <PageHeader
-        title="All Applications"
-        subtitle="Manage and process customer loan requests."
-      />
-
-      <Card>
-        {/* Filters and Search */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1 relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-400" />
+    <div className="space-y-5">
+      {/* Filters */}
+      <section className={`${CARD} p-4 lg:p-5`}>
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search
+              className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              aria-hidden="true"
+            />
             <input
-              type="text"
-              placeholder="Search by name or ID..."
+              type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white border border-cream-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
+              placeholder="Search by applicant name, email or application ID…"
+              aria-label="Search applications"
+              className="w-full pl-9 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 focus:bg-white transition-colors"
             />
           </div>
-          
-          <div className="flex items-center gap-3">
+
+          <div className="flex items-center gap-2 shrink-0">
+            <label htmlFor="type-filter" className="sr-only">
+              Filter by loan type
+            </label>
             <div className="relative">
-              <Filter className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-charcoal-400" />
+              <SlidersHorizontal
+                className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                aria-hidden="true"
+              />
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-9 pr-8 py-2 bg-white border border-cream-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500 appearance-none"
+                id="type-filter"
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="pl-9 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500 transition-colors cursor-pointer"
               >
-                <option value="">All Statuses</option>
-                <option value="draft">Draft</option>
-                <option value="documents_pending">Documents Pending</option>
-                <option value="under_review">Under Review</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
+                <option value="">All loan types</option>
+                {LOAN_TYPE_DETAILS.map((type) => (
+                  <option key={type.value} value={type.value}>
+                    {type.label}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 bg-white border border-cream-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
-            >
-              <option value="">All Types</option>
-              {LOAN_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>{type.label}</option>
-              ))}
-            </select>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 text-[13px] font-medium text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-lg px-3 py-2.5 transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+                Clear
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-cream-300/50">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-cream-100/50">
-              <tr>
-                <th className="px-4 py-3 font-medium text-charcoal-600">ID</th>
-                <th className="px-4 py-3 font-medium text-charcoal-600">Applicant</th>
-                <th className="px-4 py-3 font-medium text-charcoal-600">Type</th>
-                <th className="px-4 py-3 font-medium text-charcoal-600">Amount</th>
-                <th className="px-4 py-3 font-medium text-charcoal-600">Tenure</th>
-                <th className="px-4 py-3 font-medium text-charcoal-600">Submitted</th>
-                <th className="px-4 py-3 font-medium text-charcoal-600">Status</th>
-                <th className="px-4 py-3 font-medium text-charcoal-600 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-cream-300/50">
-              {filteredApps.length > 0 ? filteredApps.map((app) => (
-                <tr key={app._id} className="hover:bg-cream-100/50 transition-colors">
-                  <td className="px-4 py-3 text-xs font-mono text-charcoal-500">{app._id.slice(-6)}</td>
-                  <td className="px-4 py-3 text-charcoal-900 font-medium">{app.applicant?.name || 'Unknown'}</td>
-                  <td className="px-4 py-3 text-charcoal-600 capitalize">{app.loanType}</td>
-                  <td className="px-4 py-3 text-charcoal-900">{formatAmount(app.requestedAmount)}</td>
-                  <td className="px-4 py-3 text-charcoal-600">{app.tenureMonths} mo</td>
-                  <td className="px-4 py-3 text-charcoal-500">{formatDate(app.createdAt)}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={app.status} />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <Link to={`/officer/applications/${app._id}`} className="text-accent-600 hover:text-accent-700 font-medium">
-                        View
-                      </Link>
-                      <button
-                        onClick={() => handleDelete(app._id)}
-                        className="text-red-600 hover:text-red-700 font-medium p-1 hover:bg-red-50 rounded transition-colors"
-                        title="Delete Application"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan="8" className="px-4 py-12 text-center text-charcoal-400">
-                    No applications match your criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="flex flex-wrap items-center gap-2 mt-3.5">
+          {STATUS_CHIPS.map((chip) => {
+            const isActive = statusFilter === chip.value;
+            const count = chip.value ? counts.get(chip.value) || 0 : applications.length;
+            if (chip.value && count === 0 && !isActive) return null;
+            return (
+              <button
+                key={chip.value || 'all'}
+                type="button"
+                onClick={() => setStatusFilter(chip.value)}
+                aria-pressed={isActive}
+                className={`inline-flex items-center gap-1.5 text-[13px] font-medium rounded-full px-3 py-1.5 border transition-colors cursor-pointer ${
+                  isActive
+                    ? 'bg-navy-900 border-navy-900 text-white'
+                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900'
+                }`}
+              >
+                {chip.label}
+                <span
+                  className={`text-[11px] tabular-nums ${isActive ? 'text-slate-300' : 'text-slate-400'}`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
-      </Card>
+      </section>
+
+      {/* Result summary */}
+      <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+        <p className="text-[13px] text-slate-600">
+          Showing <span className="font-semibold text-slate-900">{filtered.length}</span> of{' '}
+          {applications.length} application{applications.length === 1 ? '' : 's'}
+        </p>
+        <p className="text-[13px] text-slate-600 tabular-nums">
+          Requested value{' '}
+          <span className="font-semibold text-slate-900">{formatINRCompact(filteredValue)}</span>
+        </p>
+      </div>
+
+      {/* Table */}
+      <section className={`${CARD} min-w-0`}>
+        {filtered.length === 0 ? (
+          <div className="p-12 text-center">
+            <span className="w-12 h-12 rounded-full bg-slate-100 grid place-items-center mx-auto">
+              <Search className="w-5 h-5 text-slate-400" aria-hidden="true" />
+            </span>
+            <h3 className="text-base font-semibold text-slate-900 mt-4">No matching applications</h3>
+            <p className="text-sm text-slate-600 mt-1.5">
+              {applications.length === 0
+                ? 'Submitted loan requests will appear here.'
+                : 'Try a different search term or clear the filters.'}
+            </p>
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 bg-slate-900 hover:bg-navy-800 text-white text-[13px] font-medium rounded-lg px-3.5 py-2 mt-5 transition-colors cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
+                Clear filters
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Applicant
+                  </th>
+                  <th className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Product
+                  </th>
+                  <th className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-right">
+                    Amount
+                  </th>
+                  <th className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-right whitespace-nowrap">
+                    Tenure
+                  </th>
+                  <th className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 whitespace-nowrap">
+                    Received
+                  </th>
+                  <th className="px-3 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Status
+                  </th>
+                  <th className="px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-right">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filtered.map((app) => {
+                  const meta = statusMeta(app.status);
+                  const bank = bankFor(app);
+                  const days = daysWaiting(app.createdAt);
+                  return (
+                    <tr key={app._id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-9 h-9 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold grid place-items-center shrink-0">
+                            {initialsOf(app.applicant?.name)}
+                          </span>
+                          <div className="min-w-0">
+                            <Link
+                              to={ROUTES.officerApplication(app._id)}
+                              className="block font-medium text-slate-900 truncate hover:text-emerald-700 transition-colors"
+                            >
+                              {app.applicant?.name || 'Unknown applicant'}
+                            </Link>
+                            <p className="text-[11px] text-slate-400 truncate">
+                              {app.applicant?.email || (
+                                <span className="font-mono">{app._id.slice(-8)}</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <BankLogo bank={bank} name={app.bankName} size="md" />
+                          <div className="min-w-0">
+                            <p className="text-[13px] text-slate-900 truncate">
+                              {loanTypeLabel(app.loanType)}
+                            </p>
+                            <p className="text-[11px] text-slate-400 truncate">
+                              {bank?.name || app.bankName || 'Bank not recorded'}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-3 text-right font-medium text-slate-900 tabular-nums whitespace-nowrap">
+                        {formatINR(app.requestedAmount)}
+                      </td>
+
+                      <td className="px-3 py-3 text-right text-slate-600 tabular-nums whitespace-nowrap">
+                        {app.tenureMonths ? `${app.tenureMonths} mo` : '—'}
+                      </td>
+
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <p className="text-slate-900">{formatDate(app.createdAt)}</p>
+                        <p className="flex items-center gap-1 text-[11px] text-slate-400">
+                          <Clock className="w-3 h-3" aria-hidden="true" />
+                          {days === 0 ? 'Today' : `${waitingLabel(days)} ago`}
+                        </p>
+                      </td>
+
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex items-center text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${meta.chip}`}
+                        >
+                          {meta.label}
+                        </span>
+                      </td>
+
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            to={ROUTES.officerApplication(app._id)}
+                            className="inline-flex items-center gap-1 text-[13px] font-medium text-emerald-600 hover:text-emerald-700 transition-colors whitespace-nowrap"
+                          >
+                            Review
+                            <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(app)}
+                            disabled={deletingId === app._id}
+                            title="Delete application"
+                            aria-label={`Delete application ${app._id.slice(-8)}`}
+                            className="text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md p-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

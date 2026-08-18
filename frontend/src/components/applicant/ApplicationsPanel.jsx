@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { formatINR, formatMonths } from '../../lib/loanMath';
 import { statusMeta, getBank } from '../../lib/dashboardData';
+import BankLogo from '../common/BankLogo';
 import { getDocumentRequirements } from '../../constants/mockData';
 import { ROUTES } from '../../constants/routes';
 
@@ -251,11 +252,7 @@ export default function ApplicationsPanel({
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 min-w-0">
-                    <span className="w-9 h-9 rounded-lg bg-slate-50 border border-slate-200 grid place-items-center shrink-0">
-                      <span className="text-[10px] font-semibold text-slate-600">
-                        {bank?.shortName || String(app.bankName || 'BANK').slice(0, 4).toUpperCase()}
-                      </span>
-                    </span>
+                    <BankLogo bank={bank} name={app.bankName} size="md" />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold text-slate-900 capitalize">

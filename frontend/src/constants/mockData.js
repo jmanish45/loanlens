@@ -1,75 +1,78 @@
 /**
- * Mock data for development — Stage 1 only.
- * All mock/development data is isolated here.
- * Do NOT import this file in production service layers.
+ * Loan product configuration.
+ *
+ * `type` values MUST stay within the Document model enum in
+ * backend/src/models/Document.js:
+ *   payment_slip | salary_slip | bank_statement | form16 | pan | aadhaar |
+ *   property_document | other
+ *
+ * Loan type keys MUST stay in sync with LOAN_TYPE_DETAILS in ./banks.js
+ * and with LOAN_TYPES in backend/src/models/LoanApplication.js.
  */
-
-export const MOCK_USER = {
-  name: 'Aarav Mehta',
-  email: 'aarav.mehta@email.com',
-  role: 'applicant',
-};
-
-export const MOCK_APPLICATION = {
-  id: 'LA-2026-001847',
-  loanType: 'home',
-  requestedAmount: 4500000,
-  tenureMonths: 240,
-  employmentType: 'salaried',
-  declaredMonthlyIncome: 125000,
-  status: 'draft',
-  createdAt: '2026-08-14T10:30:00Z',
-};
-
-export const MOCK_ACTIVITY = [
-  {
-    id: 1,
-    description: 'Application created',
-    timestamp: '2026-08-14T10:30:00Z',
-    type: 'info',
-  },
-  {
-    id: 2,
-    description: 'Loan details submitted',
-    timestamp: '2026-08-14T10:32:00Z',
-    type: 'success',
-  },
-];
 
 export const LOAN_TYPES = [
   { value: 'personal', label: 'Personal Loan' },
   { value: 'home', label: 'Home Loan' },
-  { value: 'auto', label: 'Auto Loan' },
+  { value: 'business', label: 'Business Loan' },
+  { value: 'lap', label: 'Loan Against Property' },
   { value: 'education', label: 'Education Loan' },
+  { value: 'vehicle', label: 'Vehicle / Auto Loan' },
+];
+
+const IDENTITY_DOCS = [
+  { type: 'pan', label: 'PAN Card', description: 'Identity Proof' },
+  { type: 'aadhaar', label: 'Aadhaar Card', description: 'Identity Proof' },
+];
+
+const INCOME_DOCS = [
+  { type: 'salary_slip', label: 'Salary Slip', description: 'Last 3 Months' },
+  { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' },
 ];
 
 export const DOCUMENT_REQUIREMENTS = {
   personal: [
-    { type: 'pan', label: 'PAN Card', description: 'Identity Proof' },
-    { type: 'aadhaar', label: 'Aadhaar Card', description: 'Identity Proof' },
-    { type: 'salary_slip', label: 'Salary Slip', description: 'Last 3 Months' },
-    { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' },
-    { type: 'form16', label: 'Form 16', description: 'Latest' }
+    ...IDENTITY_DOCS,
+    ...INCOME_DOCS,
+    { type: 'form16', label: 'Form 16', description: 'Latest Assessment Year' },
   ],
   home: [
-    { type: 'pan', label: 'PAN Card', description: 'Identity Proof' },
-    { type: 'aadhaar', label: 'Aadhaar Card', description: 'Identity Proof' },
-    { type: 'salary_slip', label: 'Salary Slip', description: 'Last 3 Months' },
-    { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' },
-    { type: 'property_document', label: 'Property Documents', description: 'Agreement / Title Deed' }
+    ...IDENTITY_DOCS,
+    ...INCOME_DOCS,
+    { type: 'property_document', label: 'Property Documents', description: 'Agreement / Title Deed' },
   ],
-  auto: [
-    { type: 'pan', label: 'PAN Card', description: 'Identity Proof' },
-    { type: 'aadhaar', label: 'Aadhaar Card', description: 'Identity Proof' },
-    { type: 'salary_slip', label: 'Salary Slip', description: 'Last 3 Months' },
-    { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' }
+  business: [
+    ...IDENTITY_DOCS,
+    { type: 'bank_statement', label: 'Bank Statement', description: 'Last 12 Months (Current A/c)' },
+    { type: 'form16', label: 'ITR / Form 16', description: 'Last 2 Assessment Years' },
+  ],
+  lap: [
+    ...IDENTITY_DOCS,
+    ...INCOME_DOCS,
+    { type: 'property_document', label: 'Property Documents', description: 'Title Deed & Valuation Report' },
   ],
   education: [
-    { type: 'pan', label: 'PAN Card', description: 'Identity Proof' },
-    { type: 'aadhaar', label: 'Aadhaar Card', description: 'Identity Proof' },
-    { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' }
-  ]
+    ...IDENTITY_DOCS,
+    { type: 'bank_statement', label: 'Bank Statement', description: 'Last 6 Months' },
+    { type: 'other', label: 'Admission Letter', description: 'Institution Offer / Fee Structure' },
+  ],
+  vehicle: [
+    ...IDENTITY_DOCS,
+    ...INCOME_DOCS,
+  ],
 };
+
+/** Legacy key — older applications were stored as `auto` before `vehicle`. */
+DOCUMENT_REQUIREMENTS.auto = DOCUMENT_REQUIREMENTS.vehicle;
+
+/**
+ * Always returns a usable checklist. Never returns an empty array, so neither
+ * the applicant uploader nor the officer checklist can render blank for a loan
+ * type that has not been configured yet.
+ */
+export function getDocumentRequirements(loanType) {
+  if (!loanType) return [];
+  return DOCUMENT_REQUIREMENTS[loanType] || [...IDENTITY_DOCS, ...INCOME_DOCS];
+}
 
 export const EMPLOYMENT_TYPES = [
   { value: 'salaried', label: 'Salaried' },

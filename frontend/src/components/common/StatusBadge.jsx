@@ -1,25 +1,20 @@
-const statusConfig = {
-  draft: { label: 'Draft', variant: 'bg-cream-300 text-charcoal-600' },
-  documents_pending: { label: 'Documents Pending', variant: 'bg-warning-100 text-warning-600' },
-  under_review: { label: 'Under Review', variant: 'bg-accent-100 text-accent-600' },
-  approved: { label: 'Approved', variant: 'bg-success-100 text-success-600' },
-  rejected: { label: 'Rejected', variant: 'bg-error-100 text-error-600' },
-  withdrawn: { label: 'Withdrawn', variant: 'bg-cream-300 text-charcoal-500' },
-};
+import { statusMeta } from '../../lib/officerData';
 
+/**
+ * Status badge for loan application statuses. Labels and colours come from the
+ * shared officer status map so the badge, the queue chips and the dashboard
+ * donut can never disagree.
+ * Keys stay in sync with APPLICATION_STATUSES in
+ * backend/src/models/LoanApplication.js
+ */
 export default function StatusBadge({ status, className = '' }) {
-  const config = statusConfig[status] || statusConfig.draft;
+  const meta = statusMeta(status);
 
   return (
     <span
-      className={`
-        inline-flex items-center px-3 py-1
-        text-xs font-semibold rounded-full
-        ${config.variant}
-        ${className}
-      `}
+      className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full whitespace-nowrap ${meta.chip} ${className}`}
     >
-      {config.label}
+      {meta.label}
     </span>
   );
 }

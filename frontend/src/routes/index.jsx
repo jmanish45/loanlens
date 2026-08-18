@@ -4,7 +4,6 @@ import Login from '../pages/Login';
 import Register from '../pages/Register';
 import ApplicantPortal from '../pages/ApplicantPortal';
 import ApplyLoan from '../pages/ApplyLoan';
-import AppLayout from '../layouts/AppLayout';
 import OfficerLayout from '../layouts/OfficerLayout';
 import RoleRoute from '../components/common/RoleRoute';
 import OfficerDashboard from '../pages/officer/Dashboard';
@@ -19,12 +18,10 @@ export default function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
-      {/* Applicant routes */}
+      {/* Applicant routes — both screens render the shared applicant shell */}
       <Route element={<RoleRoute allowedRoles={['applicant']} />}>
-        <Route path="/applicant" element={<AppLayout />}>
-          <Route index element={<ApplicantPortal />} />
-          <Route path="apply" element={<ApplyLoan />} />
-        </Route>
+        <Route path="/applicant" element={<ApplicantPortal />} />
+        <Route path="/applicant/apply" element={<ApplyLoan />} />
       </Route>
 
       {/* Officer routes */}

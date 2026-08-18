@@ -7,6 +7,8 @@ const variants = {
     'bg-white text-charcoal-900 border border-charcoal-200 hover:bg-cream-200 active:bg-cream-300',
   ghost:
     'bg-transparent text-charcoal-700 hover:bg-cream-200 active:bg-cream-300',
+  danger:
+    'bg-error-600 text-cream-50 hover:bg-error-500 active:bg-error-600',
 };
 
 const sizes = {
@@ -36,8 +38,8 @@ export default function Button({
         focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500
         disabled:opacity-50 disabled:cursor-not-allowed
         cursor-pointer
-        ${variants[variant]}
-        ${sizes[size]}
+        ${variants[variant] || variants.primary}
+        ${sizes[size] || sizes.md}
         ${className}
       `}
       {...props}

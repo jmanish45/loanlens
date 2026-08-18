@@ -1,110 +1,96 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, FileText, LogOut } from 'lucide-react';
-import Container from '../components/layout/Container';
-import { ROUTES } from '../constants/routes';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Outlet, useLocation, useSearchParams } from 'react-router-dom';
+import OfficerSidebar from '../components/officer/OfficerSidebar';
+import OfficerTopbar from '../components/officer/OfficerTopbar';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { officerService } from '../services/officerService';
+import { queueSummary, statusMeta } from '../lib/officerData';
+import { ROUTES } from '../constants/routes';
 
-const SIDEBAR_LINKS = [
-  { label: 'Dashboard', to: '/officer', icon: LayoutDashboard },
-  { label: 'Applications', to: '/officer/applications', icon: FileText },
-];
-
+/**
+ * Frame shared by every officer screen. The application list is fetched once
+ * here so the sidebar queue badges, the dashboard and the list page all read
+ * from the same data instead of firing three separate requests.
+ */
 export default function OfficerLayout() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const toast = useToast();
   const location = useLocation();
+  const [params] = useSearchParams();
+
+  const [navOpen, setNavOpen] = useState(false);
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(
+    async ({ quiet = false } = {}) => {
+      try {
+        if (!quiet) setLoading(true);
+        const response = await officerService.getApplications();
+        setApplications(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error('Failed to load applications', error);
+        toast.error(error.message, { title: 'Could not load the application queue' });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast]
+  );
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const removeApplication = useCallback((id) => {
+    setApplications((prev) => prev.filter((app) => app._id !== id));
+  }, []);
+
+  const summary = useMemo(() => queueSummary(applications), [applications]);
+
+  const statusParam = params.get('status') || '';
+  const onDetails = /\/officer\/applications\/[^/]+$/.test(location.pathname);
+
+  let title = 'Officer Workspace';
+  let subtitle = '';
+
+  if (onDetails) {
+    title = 'Application Review';
+    subtitle = 'Verify documents, run checks and record a decision';
+  } else if (location.pathname.startsWith(ROUTES.OFFICER_APPLICATIONS)) {
+    title = statusParam ? statusMeta(statusParam).label : 'All Applications';
+    subtitle = statusParam
+      ? 'Filtered work queue'
+      : 'Search, filter and open any loan request';
+  } else if (location.pathname === ROUTES.OFFICER) {
+    title = 'Verification Dashboard';
+    subtitle = 'Live queue, portfolio mix and recent activity';
+  }
+
+  const outletContext = useMemo(
+    () => ({ applications, loading, summary, refresh: load, removeApplication }),
+    [applications, loading, summary, load, removeApplication]
+  );
 
   return (
-    <div className="min-h-screen bg-cream-100">
-      {/* Top Bar */}
-      <header className="bg-white border-b border-cream-300/60 sticky top-0 z-40">
-        <Container>
-          <div className="flex items-center justify-between h-14">
-            <Link
-              to={ROUTES.HOME}
-              className="flex items-center gap-2 font-semibold text-base text-charcoal-900"
-            >
-              <span className="flex items-center justify-center w-7 h-7 rounded-md bg-accent-600 text-cream-50 text-xs font-bold">
-                LI
-              </span>
-              LoanLens<span className="text-charcoal-400 font-normal ml-1">Officer</span>
-            </Link>
+    <div className="min-h-screen bg-slate-50 flex">
+      <OfficerSidebar counts={summary} open={navOpen} onClose={() => setNavOpen(false)} />
 
-            <div className="flex items-center gap-4">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-charcoal-900">{user?.name || 'Officer'}</p>
-                <p className="text-xs text-charcoal-400 capitalize">{user?.role}</p>
-              </div>
-              <div className="w-8 h-8 rounded-full bg-accent-100 flex items-center justify-center text-sm font-semibold text-accent-700">
-                {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'O'}
-              </div>
-            </div>
+      <div className="flex-1 min-w-0 flex flex-col">
+        <OfficerTopbar
+          title={title}
+          subtitle={subtitle}
+          userName={user?.name || ''}
+          role={user?.role || 'officer'}
+          alertCount={summary.docsRequired}
+          onMenuClick={() => setNavOpen(true)}
+        />
+
+        <main className="flex-1 px-4 lg:px-8 py-6 lg:py-8">
+          <div className="mx-auto w-full max-w-[1440px]">
+            <Outlet context={outletContext} />
           </div>
-        </Container>
-      </header>
-
-      <div className="flex">
-        {/* Sidebar — Desktop */}
-        <aside className="hidden md:flex flex-col w-56 min-h-[calc(100vh-3.5rem)] bg-white border-r border-cream-300/60 pt-6 pb-4 px-3 sticky top-14 self-start">
-          <nav className="flex-1 flex flex-col gap-1" aria-label="Officer navigation">
-            {SIDEBAR_LINKS.map((link) => {
-              const Icon = link.icon;
-              const isActive = location.pathname === link.to || (link.to !== '/officer' && location.pathname.startsWith(link.to));
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                    transition-colors duration-200
-                    ${isActive
-                      ? 'bg-cream-200 text-charcoal-900'
-                      : 'text-charcoal-500 hover:bg-cream-100 hover:text-charcoal-900'
-                    }
-                  `}
-                >
-                  <Icon className="w-4 h-4" />
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <button
-            onClick={logout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-charcoal-500 hover:bg-cream-100 hover:text-charcoal-900 transition-colors duration-200 w-full text-left"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
-        </aside>
-
-        {/* Mobile Bottom Nav */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-cream-300/60 z-40 flex">
-          {SIDEBAR_LINKS.map((link) => {
-            const Icon = link.icon;
-            const isActive = location.pathname === link.to || (link.to !== '/officer' && location.pathname.startsWith(link.to));
-            return (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={`
-                  flex-1 flex flex-col items-center gap-1 py-3 text-xs font-medium
-                  transition-colors duration-200
-                  ${isActive ? 'text-charcoal-900' : 'text-charcoal-400'}
-                `}
-              >
-                <Icon className="w-5 h-5" />
-                {link.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Main Content */}
-        <main className="flex-1 min-w-0 pb-24 md:pb-0">
-          <Container className="py-8">
-            <Outlet />
-          </Container>
         </main>
       </div>
     </div>

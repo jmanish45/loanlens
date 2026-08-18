@@ -12,7 +12,10 @@ import Button from '../../components/common/Button';
 import VerificationTab from '../../components/officer/VerificationTab';
 import LoanAssistantChat from '../../components/officer/LoanAssistantChat';
 import { officerService } from '../../services/officerService';
-import { DOCUMENT_REQUIREMENTS } from '../../constants/mockData';
+import { getDocumentRequirements } from '../../constants/mockData';
+import { useToast } from '../../context/ToastContext';
+import { useConfirm } from '../../context/ConfirmContext';
+import { ROUTES } from '../../constants/routes';
 
 function formatAmount(amount) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
@@ -53,6 +56,8 @@ const STATUS_OPTIONS = [
 export default function ApplicationDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
+  const confirm = useConfirm();
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -122,30 +127,42 @@ export default function ApplicationDetails() {
   };
 
   const handleStatusChange = async (newStatus) => {
+    const previousStatus = app?.status;
     try {
       setUpdating(true);
       const response = await officerService.updateApplicationStatus(id, newStatus);
       setApp(prev => ({ ...prev, ...response.data }));
+      const label = STATUS_OPTIONS.find(o => o.value === newStatus)?.label || newStatus;
+      toast.success(`Status set to ${label}.`);
       // Refresh activity if on that tab
       if (activeTab === 'notes') fetchActivity();
     } catch (error) {
-      alert('Failed to update status: ' + error.message);
+      // Keep the select in sync with the server: the change never landed.
+      setApp(prev => (prev ? { ...prev, status: previousStatus } : prev));
+      toast.error(error.message, { title: 'Could not update status' });
     } finally {
       setUpdating(false);
     }
   };
 
   const handleDeleteApplication = async () => {
-    if (!window.confirm('Are you sure you want to completely delete this application and all associated documents? This action cannot be undone.')) {
-      return;
-    }
-    
+    const ok = await confirm({
+      title: 'Delete this application?',
+      message:
+        'The application and every document uploaded against it will be permanently removed. This cannot be undone.',
+      detail: `${app?.applicant?.name || 'Unknown applicant'} · ${id}`,
+      confirmLabel: 'Delete permanently',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
     try {
       setUpdating(true);
       await officerService.deleteApplication(id);
-      navigate('/officer/applications');
+      toast.success('Application deleted.');
+      navigate(ROUTES.OFFICER_APPLICATIONS);
     } catch (error) {
-      alert('Failed to delete application: ' + error.message);
+      toast.error(error.message, { title: 'Delete failed' });
       setUpdating(false);
     }
   };
@@ -163,7 +180,9 @@ export default function ApplicationDetails() {
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      alert('Failed to download document');
+      toast.error(error.message || 'The file could not be downloaded.', {
+        title: 'Download failed',
+      });
     }
   };
 
@@ -184,7 +203,9 @@ export default function ApplicationDetails() {
       setPreviewModal({ docId, filename, url, mimetype: blob.type || mimetype, loading: false });
     } catch (error) {
       console.error('Document preview error:', error);
-      alert('Failed to load document preview');
+      toast.error(error.message || 'The file could not be opened.', {
+        title: 'Preview unavailable',
+      });
       setPreviewModal(null);
     }
   };
@@ -202,9 +223,10 @@ export default function ApplicationDetails() {
         ...prev,
         documents: prev.documents.map(d => d._id === docId ? response.data : d),
       }));
+      toast.success('Document approved.');
       if (activeTab === 'notes') fetchActivity();
     } catch (error) {
-      alert('Failed to review document: ' + error.message);
+      toast.error(error.message, { title: 'Could not review document' });
     } finally {
       setReviewSubmitting(false);
     }
@@ -221,9 +243,10 @@ export default function ApplicationDetails() {
       }));
       setReviewModal(null);
       setReviewComment('');
+      toast.warning('Document rejected. The applicant has been asked to re-upload.');
       if (activeTab === 'notes') fetchActivity();
     } catch (error) {
-      alert('Failed to reject document: ' + error.message);
+      toast.error(error.message, { title: 'Could not reject document' });
     } finally {
       setReviewSubmitting(false);
     }
@@ -239,7 +262,7 @@ export default function ApplicationDetails() {
       setNoteText('');
       fetchActivity();
     } catch (error) {
-      alert('Failed to add note: ' + error.message);
+      toast.error(error.message, { title: 'Could not add note' });
     } finally {
       setAddingNote(false);
     }
@@ -258,7 +281,7 @@ export default function ApplicationDetails() {
     return <div className="p-8 text-center text-charcoal-500">Application not found.</div>;
   }
 
-  const requiredDocs = DOCUMENT_REQUIREMENTS[app.loanType] || [];
+  const requiredDocs = getDocumentRequirements(app.loanType);
   const uploadedDocTypes = app.documents.map(d => d.documentType);
   const missingDocs = requiredDocs.filter(r => !uploadedDocTypes.includes(r.type));
 

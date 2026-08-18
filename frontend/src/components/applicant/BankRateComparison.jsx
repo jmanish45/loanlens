@@ -1,3 +1,5 @@
+import { bankBrand } from '../common/BankLogo';
+
 export default function BankRateComparison({ rates = [], highlightBankId = null, loanTypeLabel = '' }) {
   const shell = 'bg-white border border-slate-200 rounded-xl p-5 shadow-[0_1px_2px_0_rgba(15,23,42,0.04)]';
 
@@ -33,10 +35,17 @@ export default function BankRateComparison({ rates = [], highlightBankId = null,
           const barColor = isLowest ? 'bg-emerald-500' : isYours ? 'bg-navy-900' : 'bg-slate-300';
 
           return (
-            <div key={bank.id} className="grid grid-cols-[64px_1fr_56px] items-center gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold text-slate-600 truncate">{bank.shortName}</p>
-                {isYours && <p className="text-[10px] text-navy-700">Your bank</p>}
+            <div key={bank.id} className="grid grid-cols-[72px_1fr_56px] items-center gap-3">
+              <div className="min-w-0 flex items-center gap-1.5">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: bankBrand(bank.id, bank.name).from }}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-slate-600 truncate">{bank.shortName}</p>
+                  {isYours && <p className="text-[10px] text-navy-700">Your bank</p>}
+                </div>
               </div>
 
               <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
