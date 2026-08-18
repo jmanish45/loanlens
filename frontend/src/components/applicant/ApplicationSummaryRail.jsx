@@ -1,4 +1,5 @@
 import { Info, TrendingUp } from 'lucide-react';
+import BankLogo from '../common/BankLogo';
 import {
   parseRate,
   emiBreakdown,
@@ -69,9 +70,7 @@ export default function ApplicationSummaryRail({
 
         {bank && (
           <div className="flex items-center gap-3 mt-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
-            <span className="w-9 h-9 rounded-lg bg-navy-900 grid place-items-center shrink-0">
-              <span className="text-[10px] font-semibold text-white">{bank.shortName}</span>
-            </span>
+            <BankLogo bank={bank} size="md" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-900 truncate">{bank.name}</p>
               <p className="text-[11px] text-slate-400 truncate">{bank.tagline}</p>

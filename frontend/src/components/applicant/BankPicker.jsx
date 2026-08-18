@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react';
+import BankLogo from '../common/BankLogo';
 import { AVAILABLE_BANKS } from '../../constants/banks';
 
 /**
@@ -41,9 +42,7 @@ export default function BankPicker({ value, onChange }) {
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="w-9 h-9 rounded-lg bg-navy-900 grid place-items-center shrink-0">
-                  <span className="text-[10px] font-semibold text-white">{bank.shortName}</span>
-                </span>
+                <BankLogo bank={bank} size="md" />
                 {isSelected && (
                   <span className="w-5 h-5 rounded-full bg-emerald-500 grid place-items-center shrink-0">
                     <Check className="w-3 h-3 text-white stroke-[3]" aria-hidden="true" />
