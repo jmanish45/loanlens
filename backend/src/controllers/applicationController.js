@@ -1,4 +1,5 @@
 const applicationService = require('../services/applicationService');
+const notificationService = require('../services/notificationService');
 const ApiError = require('../utils/ApiError');
 
 const createApplication = async (req, res, next) => {
@@ -75,10 +76,23 @@ const submitApplication = async (req, res, next) => {
   }
 };
 
+const getNotifications = async (req, res, next) => {
+  try {
+    const payload = await notificationService.getApplicantNotifications(req.user._id);
+    res.json({
+      success: true,
+      data: payload,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createApplication,
   getApplications,
   getApplication,
+  getNotifications,
   uploadApplicationDocument,
   submitApplication,
 };

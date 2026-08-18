@@ -8,6 +8,7 @@ import EmiSnapshot from '../components/applicant/EmiSnapshot';
 import ApplicationsPanel from '../components/applicant/ApplicationsPanel';
 import LoanJourney from '../components/applicant/LoanJourney';
 import RecommendedOffers from '../components/applicant/RecommendedOffers';
+import UpdatesPanel from '../components/applicant/UpdatesPanel';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { applicationService } from '../services/applicationService';
@@ -181,6 +182,7 @@ export default function ApplicantPortal() {
           </div>
 
           <div className="space-y-5 min-w-0">
+            <UpdatesPanel />
             <LoanJourney steps={steps} percent={journeyPercent} subtitle={journeySubtitle} />
             <RecommendedOffers rates={rates} loanTypeLabel={focusTypeLabel} />
           </div>

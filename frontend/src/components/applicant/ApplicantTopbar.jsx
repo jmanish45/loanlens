@@ -1,6 +1,5 @@
-import { Menu, Search, Bell } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { ROUTES } from '../../constants/routes';
+import { Menu, Search } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 function initialsOf(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -14,7 +13,6 @@ export default function ApplicantTopbar({
   searchTerm = '',
   onSearchChange = () => {},
   showSearch = true,
-  actionRequiredCount = 0,
   onMenuClick = () => {},
 }) {
   const firstName = String(userName || '').trim().split(/\s+/)[0] || 'there';
@@ -58,22 +56,7 @@ export default function ApplicantTopbar({
         )}
 
         <div className={`flex items-center gap-3 shrink-0 ${showSearch ? '' : 'ml-auto'}`}>
-          <Link
-            to={`${ROUTES.APPLICANT}#action-required`}
-            aria-label={
-              actionRequiredCount > 0
-                ? `${actionRequiredCount} item${actionRequiredCount === 1 ? '' : 's'} need your attention`
-                : 'Nothing needs your attention'
-            }
-            className="relative text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            <Bell className="w-[18px] h-[18px]" />
-            {actionRequiredCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-semibold rounded-full grid place-items-center tabular-nums">
-                {actionRequiredCount}
-              </span>
-            )}
-          </Link>
+          <NotificationBell />
 
           <span className="w-px h-8 bg-slate-200" aria-hidden="true" />
 
