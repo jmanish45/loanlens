@@ -12,42 +12,9 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { ROUTES } from '../../constants/routes';
 import { initialsOf } from '../../lib/officerData';
-
-/**
- * Queue links carry a ?status= filter that ApplicationsList reads on mount, so
- * the sidebar doubles as the officer's work queue.
- */
-const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: ROUTES.OFFICER },
-  { key: 'all', label: 'All Applications', icon: Files, to: ROUTES.OFFICER_APPLICATIONS },
-];
-
-const QUEUE_ITEMS = [
-  {
-    key: 'submitted',
-    label: 'New Submissions',
-    icon: Inbox,
-    status: 'submitted',
-    countKey: 'submitted',
-  },
-  {
-    key: 'under_review',
-    label: 'Under Review',
-    icon: ClipboardCheck,
-    status: 'under_review',
-    countKey: 'underReview',
-  },
-  {
-    key: 'documents_required',
-    label: 'Documents Required',
-    icon: AlertTriangle,
-    status: 'documents_required',
-    countKey: 'docsRequired',
-    urgent: true,
-  },
-];
 
 const BASE =
   'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors';
@@ -58,6 +25,37 @@ function NavContents({ counts, onNavigate }) {
   const location = useLocation();
   const [params] = useSearchParams();
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
+
+  const NAV_ITEMS = [
+    { key: 'dashboard', label: t('dashboard'), icon: LayoutDashboard, to: ROUTES.OFFICER },
+    { key: 'all', label: t('all_applications'), icon: Files, to: ROUTES.OFFICER_APPLICATIONS },
+  ];
+
+  const QUEUE_ITEMS = [
+    {
+      key: 'submitted',
+      label: t('new_submissions'),
+      icon: Inbox,
+      status: 'submitted',
+      countKey: 'submitted',
+    },
+    {
+      key: 'under_review',
+      label: t('under_review'),
+      icon: ClipboardCheck,
+      status: 'under_review',
+      countKey: 'underReview',
+    },
+    {
+      key: 'documents_required',
+      label: t('documents_required'),
+      icon: AlertTriangle,
+      status: 'documents_required',
+      countKey: 'docsRequired',
+      urgent: true,
+    },
+  ];
 
   const activeStatus = params.get('status') || '';
   const onList = location.pathname.startsWith(ROUTES.OFFICER_APPLICATIONS);
@@ -85,7 +83,7 @@ function NavContents({ counts, onNavigate }) {
 
       <nav aria-label="Officer navigation" className="px-3 pt-5 overflow-y-auto">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-3 mb-2">
-          Menu
+          {t('menu')}
         </p>
         <ul className="space-y-1">
           {NAV_ITEMS.map((item) => {
@@ -114,7 +112,7 @@ function NavContents({ counts, onNavigate }) {
         </ul>
 
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 px-3 mt-6 mb-2">
-          Work Queue
+          {t('work_queue')}
         </p>
         <ul className="space-y-1">
           {QUEUE_ITEMS.map((item) => {
@@ -136,11 +134,13 @@ function NavContents({ counts, onNavigate }) {
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {count > 0 && (
+                  <span className="flex-1">{item.label}</span>
+                  {count !== null && (
                     <span
-                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums shrink-0 ${
-                        item.urgent ? 'bg-red-500 text-white' : 'bg-white/10 text-slate-200'
+                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${
+                        item.urgent && count > 0
+                          ? 'bg-red-500 text-white'
+                          : 'bg-white/10 text-slate-300'
                       }`}
                     >
                       {count}
@@ -154,21 +154,11 @@ function NavContents({ counts, onNavigate }) {
       </nav>
 
       <div className="mt-auto p-3 space-y-2">
-        <div className="bg-navy-800 border border-white/5 rounded-xl p-3.5">
-          <div className="flex items-center gap-2.5">
-            <span className="w-9 h-9 rounded-full bg-emerald-500 text-navy-900 text-xs font-semibold grid place-items-center shrink-0">
-              {initialsOf(user?.name)}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[13px] font-semibold text-white truncate">
-                {user?.name || 'Officer'}
-              </span>
-              <span className="block text-[11px] text-slate-400 capitalize truncate">
-                {user?.role || 'officer'} access
-              </span>
-            </span>
-          </div>
-          <p className="flex items-start gap-1.5 text-[11px] text-slate-400 leading-relaxed mt-2.5">
+        <div className="bg-navy-800 border border-white/5 rounded-xl p-3">
+          <p className="text-xs font-medium text-white mb-1">
+            {initialsOf(user?.name) ? `Officer ${user?.name}` : 'Officer Workspace'}
+          </p>
+          <p className="text-[11px] text-slate-400 leading-relaxed flex items-start gap-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-px" aria-hidden="true" />
             Every decision you record is written to the application audit trail.
           </p>
@@ -180,7 +170,7 @@ function NavContents({ counts, onNavigate }) {
           className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors cursor-pointer"
         >
           <LogOut className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
-          Sign Out
+          {t('sign_out')}
         </button>
       </div>
     </>

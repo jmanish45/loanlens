@@ -21,6 +21,7 @@ import BankLogo from '../components/common/BankLogo';
 import { useForm } from '../hooks/useForm';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useLanguage } from '../context/LanguageContext';
 import { validators } from '../utils/validation';
 import { applicationService } from '../services/applicationService';
 import { EMPLOYMENT_TYPES, getDocumentRequirements } from '../constants/mockData';
@@ -87,10 +88,18 @@ function SectionCard({ icon: Icon, step, title, description, children }) {
 export default function ApplyLoan() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const toast = useToast();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [applicationId, setApplicationId] = useState(null);
+
+  const dynamicSteps = [
+    { step: 1, label: t('step1_label') },
+    { step: 2, label: t('step2_label') },
+    { step: 3, label: t('step3_label') },
+    { step: 4, label: t('step4_label') },
+  ];
 
   // Step 2 state
   const [currentDocIndex, setCurrentDocIndex] = useState(0);
@@ -291,25 +300,24 @@ export default function ApplyLoan() {
             <div className="flex flex-wrap items-end justify-between gap-5 mt-3">
               <div className="min-w-0">
                 <h1 className="text-[24px] lg:text-[28px] font-semibold leading-tight tracking-[-0.01em]">
-                  Apply for a loan
+                  {t('apply_heading')}
                 </h1>
                 <p className="text-sm text-slate-300 mt-2 max-w-lg">
-                  Pick a lending partner, tell us what you need, and upload your documents once. We
-                  verify everything before an officer reviews it.
+                  {t('apply_subheading')}
                 </p>
               </div>
 
               <div className="bg-navy-800 border border-white/5 rounded-lg px-4 py-3">
-                <p className="text-[11px] text-slate-400">Step</p>
+                <p className="text-[11px] text-slate-400">{t('step_of')}</p>
                 <p className="text-lg font-semibold tabular-nums leading-tight">
                   {currentStep}
-                  <span className="text-slate-400 text-sm font-normal"> of 4</span>
+                  <span className="text-slate-400 text-sm font-normal"> {t('of_word')} 4</span>
                 </p>
               </div>
             </div>
 
             <div className="mt-6 pt-5 border-t border-white/10 overflow-x-auto">
-              <StepProgress steps={APPLICATION_STEPS} currentStep={currentStep} />
+              <StepProgress steps={dynamicSteps} currentStep={currentStep} />
             </div>
           </div>
         </section>
@@ -321,8 +329,8 @@ export default function ApplyLoan() {
                 <SectionCard
                   icon={Landmark}
                   step="1"
-                  title="Choose your lending partner"
-                  description="Rates shown are each bank's published starting rate"
+                  title={t('select_bank_title')}
+                  description={t('select_bank_sub')}
                 >
                   <BankPicker value={form.values.bankId} onChange={handleBankSelect} />
                 </SectionCard>
@@ -330,8 +338,8 @@ export default function ApplyLoan() {
                 <SectionCard
                   icon={Wallet}
                   step="2"
-                  title="What are you borrowing for?"
-                  description="This decides which documents we ask for"
+                  title={t('select_loan_title')}
+                  description={t('select_loan_sub')}
                 >
                   <LoanTypePicker
                     value={form.values.loanType}
@@ -343,7 +351,7 @@ export default function ApplyLoan() {
                 <SectionCard
                   icon={ShieldCheck}
                   step="3"
-                  title="Amount, tenure and income"
+                  title={t('amount_income_title')}
                   description="Used to estimate your EMI and check eligibility"
                 >
                   <div className="grid sm:grid-cols-2 gap-5">
@@ -453,7 +461,7 @@ export default function ApplyLoan() {
                     {form.isSubmitting && (
                       <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                     )}
-                    Continue to documents
+                    {t('save_continue_docs')}
                     <ArrowRight className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>

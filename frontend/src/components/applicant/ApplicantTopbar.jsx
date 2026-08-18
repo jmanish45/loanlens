@@ -1,5 +1,6 @@
 import { Menu, Search } from 'lucide-react';
 import NotificationBell from './NotificationBell';
+import LanguageSelector from '../common/LanguageSelector';
 
 function initialsOf(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -56,6 +57,7 @@ export default function ApplicantTopbar({
         )}
 
         <div className={`flex items-center gap-3 shrink-0 ${showSearch ? '' : 'ml-auto'}`}>
+          <LanguageSelector variant="light" />
           <NotificationBell />
 
           <span className="w-px h-8 bg-slate-200" aria-hidden="true" />

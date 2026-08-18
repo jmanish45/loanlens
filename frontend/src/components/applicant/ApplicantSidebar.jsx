@@ -11,33 +11,31 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { ROUTES } from '../../constants/routes';
-
-/**
- * Anchor links point at the dashboard so they keep working from other applicant
- * pages; ApplicantPortal scrolls to the hash once its data has loaded.
- */
-const NAV_ITEMS = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, to: ROUTES.APPLICANT },
-  { key: 'apply', label: 'New Application', icon: FilePlus2, to: ROUTES.APPLY },
-  {
-    key: 'applications',
-    label: 'My Applications',
-    icon: Files,
-    to: `${ROUTES.APPLICANT}#applications`,
-  },
-  {
-    key: 'action',
-    label: 'Action Required',
-    icon: AlertTriangle,
-    to: `${ROUTES.APPLICANT}#action-required`,
-    badged: true,
-  },
-];
 
 function NavContents({ actionRequiredCount, onNavigate }) {
   const location = useLocation();
   const { logout } = useAuth();
+  const { t } = useLanguage();
+
+  const NAV_ITEMS = [
+    { key: 'dashboard', label: t('dashboard'), icon: LayoutDashboard, to: ROUTES.APPLICANT },
+    { key: 'apply', label: t('start_application'), icon: FilePlus2, to: ROUTES.APPLY },
+    {
+      key: 'applications',
+      label: t('current_application'),
+      icon: Files,
+      to: `${ROUTES.APPLICANT}#applications`,
+    },
+    {
+      key: 'action',
+      label: t('action_required'),
+      icon: AlertTriangle,
+      to: `${ROUTES.APPLICANT}#action-required`,
+      badged: true,
+    },
+  ];
 
   const activeKey =
     location.pathname === ROUTES.APPLY
@@ -117,7 +115,7 @@ function NavContents({ actionRequiredCount, onNavigate }) {
           className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition-colors cursor-pointer"
         >
           <LogOut className="w-[18px] h-[18px] shrink-0" aria-hidden="true" />
-          Sign Out
+          {t('sign_out')}
         </button>
       </div>
     </>

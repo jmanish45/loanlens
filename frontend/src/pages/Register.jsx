@@ -14,6 +14,8 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from '../components/common/LanguageSelector';
 import { useForm } from '../hooks/useForm';
 import { validators } from '../utils/validation';
 import { ROUTES } from '../constants/routes';
@@ -39,6 +41,7 @@ const validationRules = {
 
 export default function Register() {
   const { register } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -81,18 +84,21 @@ export default function Register() {
           </span>
           <div>
             <span className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">
-              LoanLens <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">AI</span>
+              {t('brand_name')} <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">AI</span>
             </span>
-            <span className="text-[11px] text-slate-400 block -mt-0.5">Credit Intelligence & Underwriting</span>
+            <span className="text-[11px] text-slate-400 block -mt-0.5">{t('brand_tagline')}</span>
           </div>
         </Link>
 
-        <Link
-          to={ROUTES.LOGIN}
-          className="text-xs font-semibold text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900"
-        >
-          Already registered? <span className="text-emerald-400 font-bold ml-1">Sign In</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <LanguageSelector variant="dark" />
+          <Link
+            to={ROUTES.LOGIN}
+            className="text-xs font-semibold text-slate-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg border border-slate-800 hover:bg-slate-900"
+          >
+            {t('already_have_account')} <span className="text-emerald-400 font-bold ml-1">{t('sign_in')}</span>
+          </Link>
+        </div>
       </header>
 
       {/* Main Container */}
