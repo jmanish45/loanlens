@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Container from './Container';
 import Button from '../common/Button';
+import LanguageSelector from '../common/LanguageSelector';
 import { ROUTES } from '../../constants/routes';
 import { useAuth } from '../../context/AuthContext';
 
@@ -69,9 +70,10 @@ export default function Navbar() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSelector variant="light" />
             {user ? (
               <>
-                <Link to={ROUTES.APPLICANT}>
+                <Link to={user.role === 'officer' ? '/officer' : ROUTES.APPLICANT}>
                   <Button variant="ghost" size="sm">Dashboard</Button>
                 </Link>
                 <Button variant="secondary" size="sm" onClick={logout}>Sign Out</Button>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Menu, Bell, Clock } from 'lucide-react';
+import LanguageSelector from '../common/LanguageSelector';
 import { ROUTES } from '../../constants/routes';
 import { initialsOf } from '../../lib/officerData';
 
@@ -33,6 +34,8 @@ export default function OfficerTopbar({
         </div>
 
         <div className="flex items-center gap-3 shrink-0 ml-auto">
+          <LanguageSelector variant="light" />
+
           <span className="hidden md:inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-1">
             <Clock className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
             Live queue
