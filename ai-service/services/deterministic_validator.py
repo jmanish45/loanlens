@@ -187,10 +187,16 @@ def run_deterministic_validation(
     # 2. Identity Checks: Date of Birth & PAN Consistency
     # -------------------------------------------------------------------------
     dobs: List[Tuple[str, str]] = []
-    pan_dob = (pan_data and pan_data.get("date_of_birth")) or "15 May 1998"
-    aadhaar_dob = (aadhaar_data and aadhaar_data.get("date_of_birth")) or "15 May 1998"
-    dobs.append(("PAN Card", pan_dob))
-    dobs.append(("Aadhaar Card", aadhaar_dob))
+    pan_dob = pan_data.get("date_of_birth") if pan_data else None
+    aadhaar_dob = aadhaar_data.get("date_of_birth") if aadhaar_data else None
+    declared_dob = (applicant_declared.get("date_of_birth") or applicant_declared.get("dob")) if applicant_declared else None
+
+    if pan_dob:
+        dobs.append(("PAN Card", str(pan_dob).strip()))
+    if aadhaar_dob:
+        dobs.append(("Aadhaar Card", str(aadhaar_dob).strip()))
+    if declared_dob and not (pan_dob and aadhaar_dob):
+        dobs.append(("Declared Profile", str(declared_dob).strip()))
 
     if len(dobs) >= 2:
         dob_evidence = {src: val for src, val in dobs}
@@ -220,6 +226,26 @@ def run_deterministic_validation(
                 sourceA=dob_src_a,
                 sourceB=dob_src_b,
             ))
+    elif len(dobs) == 1:
+        checks.append(VerificationCheck(
+            type="DOB_CONSISTENCY",
+            status=CheckStatus.PASSED,
+            severity=SeverityLevel.LOW,
+            message=f"Date of birth verified from {dobs[0][0]}: {dobs[0][1]}",
+            evidence={dobs[0][0]: dobs[0][1]},
+            sourceA=EvidenceSide(label=dobs[0][0], values=[f"Date of Birth: {dobs[0][1]}"]),
+            sourceB=EvidenceSide(label="Cross-Check", values=["Single source detected"]),
+        ))
+    else:
+        checks.append(VerificationCheck(
+            type="DOB_CONSISTENCY",
+            status=CheckStatus.WARNING,
+            severity=SeverityLevel.LOW,
+            message="Date of birth not detected from uploaded identity documents.",
+            evidence={},
+            sourceA=EvidenceSide(label="PAN Card", values=["DOB: Not Detected"]),
+            sourceB=EvidenceSide(label="Aadhaar Card", values=["DOB: Not Detected"]),
+        ))
 
     # PAN Number Cross-Check
     pan_numbers: List[Tuple[str, str]] = []

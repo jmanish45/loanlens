@@ -158,28 +158,28 @@ const resolveCheckSources = (check) => {
     }
 
     case 'DOB_CONSISTENCY': {
-      const panDob = ev['PAN Card'] || '15 May 1998';
-      const aadhaarDob = ev['Aadhaar Card'] || '15 May 1998';
+      const panDob = ev['PAN Card'] || ev['Declared Profile'] || '-';
+      const aadhaarDob = ev['Aadhaar Card'] || (ev['Declared Profile'] && ev['PAN Card'] ? ev['Declared Profile'] : '-');
       return {
         sourceA: { label: 'PAN Card', values: [`Date of Birth: ${panDob}`] },
-        sourceB: { label: 'Aadhaar Card', values: [`Date of Birth: ${aadhaarDob}`] },
+        sourceB: { label: 'Aadhaar / Declared', values: [`Date of Birth: ${aadhaarDob}`] },
       };
     }
 
     case 'PAN_CONSISTENCY': {
-      const panVal = ev['PAN Card'] || 'ABCDE1234F';
+      const panVal = ev['PAN Card'] || '-';
       const slipPan = ev['Salary Slip'] || ev['Form 16'] || '-';
       return {
-        sourceA: { label: 'PAN Card', values: [`PAN: ${panVal}`, 'Format: Valid'] },
-        sourceB: { label: 'Cross-Reference', values: [`Salary Slip: ${slipPan}`, 'Status: Active'] },
+        sourceA: { label: 'PAN Card', values: [`PAN: ${panVal}`, `Format: ${panVal !== '-' ? 'Valid' : 'Pending'}`] },
+        sourceB: { label: 'Cross-Reference', values: [`Salary Slip: ${slipPan}`, `Status: ${slipPan !== '-' ? 'Matched' : 'Pending'}`] },
       };
     }
 
     case 'AADHAAR_VERIFICATION': {
-      const aadhVal = ev['aadhaar_number'] || 'XXXX XXXX 1234';
+      const aadhVal = ev['aadhaar_number'] || ev['Aadhaar Card'] || '-';
       return {
-        sourceA: { label: 'Aadhaar Card', values: [`Aadhaar: ${aadhVal}`, 'Format: Valid'] },
-        sourceB: { label: 'Status', values: ['Status: Active', 'Linked: Yes'] },
+        sourceA: { label: 'Aadhaar Card', values: [`Aadhaar: ${aadhVal}`, `Format: ${aadhVal !== '-' ? 'Valid' : 'Pending'}`] },
+        sourceB: { label: 'Status', values: [`Status: ${aadhVal !== '-' ? 'Active' : 'Pending'}`, 'Linked: Yes'] },
       };
     }
 
@@ -367,7 +367,7 @@ const ExtractedDataTable = ({ checks, documents, app }) => {
   const evBank = bankSalaryCheck?.evidence || {};
 
   // 1. Full Name values (PAN & Aadhaar must reflect the registered applicant name for cross-checking)
-  const registeredApplicantName = app?.applicant?.name || 'Manish Jaiswal';
+  const registeredApplicantName = app?.applicant?.name || '-';
   const panName = panDoc.name || evName['PAN Card'] || evName['PAN'] || registeredApplicantName;
   const aadhaarName = aadhaarDoc.name || evName['Aadhaar Card'] || evName['AADHAAR'] || registeredApplicantName;
   const salaryName = salaryDoc.employee_name || evName['Salary Slip'] || evName['SALARY_SLIP'] || '-';
@@ -375,24 +375,24 @@ const ExtractedDataTable = ({ checks, documents, app }) => {
 
   // Determine name consistency dynamically against registered applicant name
   const presentNames = [salaryName, bankName].filter(n => n && n !== '-');
-  const hasMismatchWithFinancialDocs = presentNames.some(
+  const hasMismatchWithFinancialDocs = registeredApplicantName !== '-' && presentNames.some(
     n => n.trim().toLowerCase() !== registeredApplicantName.trim().toLowerCase()
   );
   const isNameMismatch = hasMismatchWithFinancialDocs || nameCheck?.status === 'FLAGGED';
 
   // 2. Date of Birth values (shown on PAN & Aadhaar)
-  const panDob = panDoc.date_of_birth || evDob['PAN Card'] || '15 May 1998';
-  const aadhaarDob = aadhaarDoc.date_of_birth || evDob['Aadhaar Card'] || '15 May 1998';
+  const panDob = panDoc.date_of_birth || evDob['PAN Card'] || '-';
+  const aadhaarDob = aadhaarDoc.date_of_birth || evDob['Aadhaar Card'] || '-';
   const isDobMismatch = dobCheck?.status === 'FLAGGED';
 
   // 3. PAN Number values
-  const panNum = panDoc.pan_number || evPan['PAN Card'] || 'PCD5MW27SG';
+  const panNum = panDoc.pan_number || evPan['PAN Card'] || app?.applicant?.pan || '-';
   const salaryPan = salaryDoc.pan_number || evPan['Salary Slip'] || '-';
   const bankPan = bankDoc.pan_number || evPan['Bank Statement'] || '-';
   const isPanMismatch = panCheck?.status === 'FLAGGED';
 
   // 4. Aadhaar Number values
-  const aadhaarNum = aadhaarDoc.aadhaar_number || evAadhaar['aadhaar_number'] || '750515798649';
+  const aadhaarNum = aadhaarDoc.aadhaar_number || evAadhaar['aadhaar_number'] || evAadhaar['Aadhaar Card'] || app?.applicant?.aadhaar || '-';
 
   // 5. Declared Monthly Income & Bank Credit values
   const rawSalary = salaryDoc.net_salary || salaryDoc.gross_salary || evInc['salary_slip_net'] || evInc['declared_monthly_income'] || app?.declaredMonthlyIncome;

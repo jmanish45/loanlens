@@ -13,7 +13,15 @@ logger = logging.getLogger(__name__)
 
 PAN_PATTERN = re.compile(r"\b([A-Z]{5}[0-9]{4}[A-Z])\b")
 AADHAAR_PATTERN = re.compile(r"\b(\d{4}[\s-]?\d{4}[\s-]?\d{4})\b")
-DOB_PATTERN = re.compile(r"\b(\d{2}[/-]\d{2}[/-]\d{4})\b")
+MONTHS = r"(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)"
+
+DOB_PATTERNS = [
+    re.compile(r"\b(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})\b"),
+    re.compile(rf"\b(\d{{1,2}}[\/\-\.\s]{MONTHS}[\/\-\.\s,]\s*\d{{2,4}})\b", re.IGNORECASE),
+    re.compile(rf"\b({MONTHS}\s+\d{{1,2}}[\/\-\.\s,]\s*\d{{2,4}})\b", re.IGNORECASE),
+    re.compile(r"\b((?:19|20)\d{2}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})\b"),
+]
+DOB_PATTERN = DOB_PATTERNS[0]
 YOB_PATTERN = re.compile(r"\b(19|20)\d{2}\b")
 GENDER_PATTERN = re.compile(r"\b(Male|Female|Transgender|MALE|FEMALE|TRANSGENDER|M|F)\b", re.IGNORECASE)
 
@@ -24,7 +32,7 @@ PAN_LABELS = {
         re.IGNORECASE,
     ),
     "date_of_birth": re.compile(
-        r"(?:date\s*of\s*birth|d\.?\s*o\.?\s*b\.?|जन्म\s*तिथि)\s*[:\-]?\s*(\d{2}[/-]\d{2}[/-]\d{4})",
+        rf"(?:date\s*of\s*birth|d\.?\s*o\.?\s*b\.?|जन्म\s*तिथि)\s*[:\-]?\s*(\d{{1,2}}[\/\-\.\s](?:\d{{1,2}}|{MONTHS})[\/\-\.\s]\d{{2,4}})",
         re.IGNORECASE,
     ),
 }
@@ -77,72 +85,138 @@ def _find_aadhaar_number(text: str) -> Optional[str]:
     return None
 
 
-def _find_name_after_pan(text: str, pan_number: str) -> Optional[str]:
-    """Heuristic: on e-PAN PDFs the holder name often follows the PAN line."""
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    upper_lines = [ln.upper() for ln in lines]
+def _is_noise_or_label_pan(line: str) -> bool:
+    """Check if a line is a header, metadata, label, or noise in a PAN card."""
+    if not line:
+        return True
+    cleaned = line.strip()
+    upper = cleaned.upper()
+    if len(cleaned) < 2:
+        return True
 
-    pan_idx = next((i for i, ln in enumerate(upper_lines) if pan_number in ln), None)
-    if pan_idx is None:
-        return None
+    # Common PAN card header lines and labels
+    noise_keywords = [
+        "INCOME TAX", "INCOMETAX", "आयकर", "DEPARTMENT", "विभाग",
+        "GOVT", "GOVERNMENT", "INDIA", "BHARAT", "भारत", "सरकार",
+        "PERMANENT", "ACCOUNT NUMBER", "CARD", "लेखा", "संख्या",
+        "SIGNATURE", "हस्ताक्षर", "FATHER", "PITA", "पिता",
+        "DATE OF BIRTH", "DOB", "जन्म", "तारीख", "MALE", "FEMALE"
+    ]
+    for kw in noise_keywords:
+        if kw in upper:
+            return True
 
-    skip_labels = {
-        "NAME",
-        "FATHER'S NAME",
-        "FATHERS NAME",
-        "DATE OF BIRTH",
-        "SIGNATURE",
-        "PERMANENT ACCOUNT NUMBER",
-        "INCOME TAX DEPARTMENT",
-        "GOVT. OF INDIA",
-        "GOVT OF INDIA",
-    }
+    # Standalone or corrupted label patterns like "a4 / Name", "नाम / Name", "Name /", "T / Name", "/ Name"
+    if re.match(r"^[\W\d_]*(?:name|नाम|naam|a4|ft|aa)[\s\/\:\-_]*(?:name|नाम)?[\s\/\:\-_]*$", cleaned, re.IGNORECASE):
+        return True
 
-    for ln in lines[pan_idx + 1 : pan_idx + 6]:
-        upper = ln.upper()
-        if upper in skip_labels or PAN_PATTERN.search(upper):
-            continue
-        if len(ln) >= 3 and re.search(r"[A-Za-z]", ln):
-            return _clean_line(ln)
+    # PAN Number or DOB pattern on line
+    if PAN_PATTERN.search(upper):
+        return True
+    for dp in DOB_PATTERNS:
+        if dp.search(upper):
+            return True
+
+    # Pure digits/symbols
+    if not re.search(r"[A-Za-z]", cleaned):
+        return True
+
+    return False
+
+
+def _find_dob(text: str) -> Optional[str]:
+    labeled = _find_labeled_value(text, PAN_LABELS["date_of_birth"])
+    if labeled:
+        for pat in DOB_PATTERNS:
+            dob_match = pat.search(labeled)
+            if dob_match:
+                return dob_match.group(1).strip()
+        return labeled.strip()
+
+    for pat in DOB_PATTERNS:
+        match = pat.search(text)
+        if match:
+            return match.group(1).strip()
     return None
 
 
 def _find_fathers_name_after_label(text: str) -> Optional[str]:
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     for i, line in enumerate(lines):
-        if re.search(r"father", line, re.IGNORECASE):
-            inline = PAN_LABELS["fathers_name"].search(line)
+        if re.search(r"father|पिता|pita", line, re.IGNORECASE):
+            inline = re.search(r"(?:father(?:'?s)?\s*name|pita\s*ka\s*naam|पिता\s*का\s*नाम)\s*[:\-]\s*([A-Za-z\s\.]{3,})", line, re.IGNORECASE)
             if inline:
-                return _clean_line(inline.group(1))
-            for nxt in lines[i + 1 : i + 3]:
-                if DOB_PATTERN.search(nxt) or PAN_PATTERN.search(nxt.upper()):
-                    break
-                if len(nxt) >= 3 and re.search(r"[A-Za-z]", nxt):
-                    return _clean_line(nxt)
-    return _find_labeled_value(text, PAN_LABELS["fathers_name"])
+                cand = _clean_line(inline.group(1))
+                if not _is_noise_or_label_pan(cand):
+                    return cand
+            for nxt in lines[i + 1 : i + 4]:
+                cand = _clean_line(nxt)
+                if not _is_noise_or_label_pan(cand):
+                    clean_name = re.sub(r"^[^A-Za-z]+|[^A-Za-z\s\.]+$", "", cand).strip()
+                    if len(clean_name) >= 3:
+                        return clean_name
+    return None
 
 
-def _find_dob(text: str) -> Optional[str]:
-    labeled = _find_labeled_value(text, PAN_LABELS["date_of_birth"])
-    if labeled:
-        dob_match = DOB_PATTERN.search(labeled)
-        return dob_match.group(1) if dob_match else labeled
+def _find_holder_name_pan(text: str, pan_number: Optional[str] = None, fathers_name: Optional[str] = None) -> Optional[str]:
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
 
-    match = DOB_PATTERN.search(text)
-    return match.group(1) if match else None
+    # 1. Look for Name label lines (e.g., "नाम / Name", "a4 / Name", "Name:")
+    for i, line in enumerate(lines):
+        is_name_label = (
+            re.search(r"(?:name|नाम|naam)", line, re.IGNORECASE) or 
+            re.search(r"^a4\s*\/\s*name", line, re.IGNORECASE)
+        ) and not re.search(r"father|पिता|pita", line, re.IGNORECASE)
+
+        if is_name_label:
+            inline = re.search(r"(?:name|नाम|naam)\s*[:\-]\s*([A-Za-z\s\.]{3,})", line, re.IGNORECASE)
+            if inline:
+                cand = _clean_line(inline.group(1))
+                if not _is_noise_or_label_pan(cand) and len(cand) >= 3:
+                    return cand
+
+            for nxt in lines[i + 1 : i + 4]:
+                cand = _clean_line(nxt)
+                if not _is_noise_or_label_pan(cand):
+                    if fathers_name and cand.upper() == fathers_name.upper():
+                        continue
+                    clean_name = re.sub(r"^[^A-Za-z]+|[^A-Za-z\s\.]+$", "", cand).strip()
+                    if len(clean_name) >= 3:
+                        return clean_name
+
+    # 2. Look above Father's Name line
+    for i, line in enumerate(lines):
+        if re.search(r"father|पिता|pita", line, re.IGNORECASE):
+            for prev in reversed(lines[max(0, i - 3) : i]):
+                cand = _clean_line(prev)
+                if not _is_noise_or_label_pan(cand):
+                    if fathers_name and cand.upper() == fathers_name.upper():
+                        continue
+                    clean_name = re.sub(r"^[^A-Za-z]+|[^A-Za-z\s\.]+$", "", cand).strip()
+                    if len(clean_name) >= 3:
+                        return clean_name
+
+    # 3. Fallback heuristic: first clean alpha line
+    for line in lines:
+        cand = _clean_line(line)
+        if not _is_noise_or_label_pan(cand):
+            if fathers_name and cand.upper() == fathers_name.upper():
+                continue
+            clean_name = re.sub(r"^[^A-Za-z]+|[^A-Za-z\s\.]+$", "", cand).strip()
+            if len(clean_name) >= 3:
+                return clean_name
+
+    return None
 
 
 def parse_pan_text(text: str) -> dict:
-    """Extract structured PAN fields from native PDF text."""
+    """Extract structured PAN fields from native PDF / OCR text."""
     if not text or len(text.strip()) < 10:
         return {}
 
     pan_number = _find_pan_number(text)
-    name = _find_labeled_value(text, PAN_LABELS["name"])
-    if not name and pan_number:
-        name = _find_name_after_pan(text, pan_number)
-
     fathers_name = _find_fathers_name_after_label(text)
+    name = _find_holder_name_pan(text, pan_number=pan_number, fathers_name=fathers_name)
     date_of_birth = _find_dob(text)
 
     data = PanCardData(
@@ -154,22 +228,105 @@ def parse_pan_text(text: str) -> dict:
     return data.model_dump(exclude_none=True)
 
 
+def _is_noise_or_label_aadhaar(line: str) -> bool:
+    """Check if a line is a header, metadata, label, or noise in an Aadhaar card."""
+    if not line:
+        return True
+    cleaned = line.strip()
+    upper = cleaned.upper()
+    if len(cleaned) < 2:
+        return True
+
+    noise_keywords = [
+        "UNIQUE IDENTIFICATION", "AUTHORITY OF INDIA", "UIDAI", "GOVERNMENT OF INDIA", "GOVT",
+        "MERA AADHAAR", "MERI PEHCHAN", "ENROLMENT", "HELP@UIDAI", "WWW.UIDAI.GOV.IN",
+        "DATE OF BIRTH", "DOB", "YEAR OF BIRTH", "YOB", "MALE", "FEMALE", "TRANSGENDER",
+        "ADDRESS", "S/O", "D/O", "W/O", "C/O", "PIN CODE", "PO BOX", "SIGNATURE", "VID"
+    ]
+    for kw in noise_keywords:
+        if kw in upper:
+            return True
+
+    if re.match(r"^[\W\d_]*(?:name|नाम|naam|to|shri|smt)[\s\/\:\-_]*(?:name|नाम)?[\s\/\:\-_]*$", cleaned, re.IGNORECASE):
+        return True
+
+    if AADHAAR_PATTERN.search(upper):
+        return True
+    for dp in DOB_PATTERNS:
+        if dp.search(upper):
+            return True
+
+    if not re.search(r"[A-Za-z]", cleaned):
+        return True
+
+    return False
+
+
+def _find_holder_name_aadhaar(text: str) -> Optional[str]:
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+
+    # 1. Look for Name label or "To" lines
+    for i, line in enumerate(lines):
+        if re.search(r"(?:name|नाम|naam|^to\b)", line, re.IGNORECASE):
+            inline = re.search(r"(?:name|नाम|naam|^to)\s*[:\-]\s*([A-Za-z\s\.]{3,})", line, re.IGNORECASE)
+            if inline:
+                cand = _clean_line(inline.group(1))
+                if not _is_noise_or_label_aadhaar(cand) and len(cand) >= 3:
+                    return cand
+
+            for nxt in lines[i + 1 : i + 4]:
+                cand = _clean_line(nxt)
+                if not _is_noise_or_label_aadhaar(cand):
+                    clean_name = re.sub(r"^[^A-Za-z]+|[^A-Za-z\s\.]+$", "", cand).strip()
+                    if len(clean_name) >= 3:
+                        return clean_name
+
+    # 2. Look above DOB / Gender line (Aadhaar cards place holder name right above DOB/Gender)
+    for i, line in enumerate(lines):
+        if re.search(r"dob|date\s*of\s*birth|year\s*of\s*birth|male|female|लिंग|जन्म", line, re.IGNORECASE):
+            for prev in reversed(lines[max(0, i - 3) : i]):
+                cand = _clean_line(prev)
+                if not _is_noise_or_label_aadhaar(cand):
+                    clean_name = re.sub(r"^[^A-Za-z]+|[^A-Za-z\s\.]+$", "", cand).strip()
+                    if len(clean_name) >= 3:
+                        return clean_name
+
+    # 3. Fallback
+    for line in lines:
+        cand = _clean_line(line)
+        if not _is_noise_or_label_aadhaar(cand):
+            clean_name = re.sub(r"^[^A-Za-z]+|[^A-Za-z\s\.]+$", "", cand).strip()
+            if len(clean_name) >= 3:
+                return clean_name
+
+    return None
+
+
 def parse_aadhaar_text(text: str) -> dict:
-    """Extract structured Aadhaar fields from native PDF text."""
+    """Extract structured Aadhaar fields from native PDF / OCR text."""
     if not text or len(text.strip()) < 10:
         return {}
 
     aadhaar_number = _find_aadhaar_number(text)
-    name = _find_labeled_value(text, AADHAAR_LABELS["name"])
-    date_of_birth = _find_labeled_value(text, AADHAAR_LABELS["date_of_birth"])
+    name = _find_holder_name_aadhaar(text)
+    date_of_birth = _find_dob(text) or _find_labeled_value(text, AADHAAR_LABELS["date_of_birth"])
     gender = _find_labeled_value(text, AADHAAR_LABELS["gender"])
     address = _find_labeled_value(text, AADHAAR_LABELS["address"])
 
+    if date_of_birth:
+        for pat in DOB_PATTERNS:
+            dob_match = pat.search(date_of_birth)
+            if dob_match:
+                date_of_birth = dob_match.group(1).strip()
+                break
+
     if not date_of_birth:
-        dob_match = DOB_PATTERN.search(text)
-        if dob_match:
-            date_of_birth = dob_match.group(1)
-        else:
+        for pat in DOB_PATTERNS:
+            dob_match = pat.search(text)
+            if dob_match:
+                date_of_birth = dob_match.group(1).strip()
+                break
+        if not date_of_birth:
             yob_match = YOB_PATTERN.search(text)
             if yob_match:
                 date_of_birth = yob_match.group(0)

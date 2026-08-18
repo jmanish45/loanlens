@@ -57,8 +57,6 @@ export default function DocumentUploader({
     onFileChange(nextFile);
   };
 
-  const needsManualBackup = currentDocType?.type === 'pan' || currentDocType?.type === 'aadhaar';
-
   return (
     <div className="space-y-5">
       <div className={`${CARD} p-5`}>
@@ -203,29 +201,6 @@ export default function DocumentUploader({
                 <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-px" aria-hidden="true" />
                 {sizeError}
               </p>
-            )}
-
-            {needsManualBackup && (
-              <div className="mt-5">
-                <label
-                  htmlFor="manual-backup"
-                  className="block text-sm font-medium text-slate-900 mb-1.5"
-                >
-                  {currentDocType.type === 'pan' ? 'PAN number' : 'Aadhaar number'}
-                  <span className="text-slate-400 font-normal"> (optional)</span>
-                </label>
-                <input
-                  id="manual-backup"
-                  type="text"
-                  value={manualText}
-                  onChange={(e) => onManualTextChange(e.target.value)}
-                  placeholder={currentDocType.type === 'pan' ? 'ABCDE1234F' : '1234 5678 9012'}
-                  className="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2.5 text-slate-900 placeholder:text-slate-400 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/25 focus:border-emerald-500"
-                />
-                <p className="text-xs text-slate-400 mt-1.5">
-                  Helps us read the number if the scan is unclear.
-                </p>
-              </div>
             )}
 
             <button
