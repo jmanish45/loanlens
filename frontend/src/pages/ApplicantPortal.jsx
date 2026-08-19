@@ -9,6 +9,7 @@ import ApplicationsPanel from '../components/applicant/ApplicationsPanel';
 import LoanJourney from '../components/applicant/LoanJourney';
 import RecommendedOffers from '../components/applicant/RecommendedOffers';
 import UpdatesPanel from '../components/applicant/UpdatesPanel';
+import ActionRequiredPanel from '../components/applicant/ActionRequiredPanel';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { applicationService } from '../services/applicationService';
@@ -160,6 +161,8 @@ export default function ApplicantPortal() {
 
         <div className="grid xl:grid-cols-[1fr_360px] gap-5 items-start">
           <div className="space-y-5 min-w-0">
+            <ActionRequiredPanel />
+
             <ApplicationsPanel
               applications={applications}
               searchTerm={searchTerm}
