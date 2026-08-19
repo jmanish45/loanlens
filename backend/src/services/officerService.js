@@ -57,8 +57,25 @@ const updateApplicationStatus = async (id, status, officerId) => {
     to: status,
   });
 
-  // Re-populate for the response
+  // Approving the application clears every supporting document. Once the officer
+  // signs off on the whole file, each document is accepted — so the applicant
+  // sees a fully "Approved" set instead of stale pending/rejected pills, and any
+  // earlier rejection comment is cleared.
+  if (status === 'approved') {
+    const result = await Document.updateMany(
+      { application: id, status: { $ne: 'approved' } },
+      { $set: { status: 'approved', reviewComment: null } }
+    );
+    const changed = result.modifiedCount ?? result.nModified ?? 0;
+    if (changed > 0) {
+      await logActivity(id, officerId, 'Documents Approved', { count: changed });
+    }
+  }
+
+  // Re-populate for the response — documents included so the officer UI reflects
+  // the auto-approval immediately without a second fetch.
   await application.populate('applicant', 'name email');
+  await application.populate('documents');
 
   return application;
 };

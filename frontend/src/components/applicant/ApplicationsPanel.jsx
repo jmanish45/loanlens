@@ -171,10 +171,6 @@ export default function ApplicationsPanel({
   const defaultExpandedId = filtered[0]?._id ?? null;
   const activeExpandedId = expandedId === null ? defaultExpandedId : expandedId;
 
-  const firstActionAppId = filtered.find((app) =>
-    (app.documents || []).some((d) => d?.status === 'rejected')
-  )?._id;
-
   const header = (
     <div className="flex items-center justify-between gap-3">
       <div>
@@ -384,7 +380,6 @@ export default function ApplicationsPanel({
 
                   {rejected.length > 0 && (
                     <div
-                      id={app._id === firstActionAppId ? 'action-required' : undefined}
                       className="rounded-lg border border-red-200 bg-red-50 p-4 scroll-mt-24"
                     >
                       <div className="flex items-center gap-2">

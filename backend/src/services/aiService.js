@@ -19,7 +19,7 @@ const validationService = require('./validationService');
  */
 
 const AI_SERVICE_URL = config.aiServiceUrl || 'http://localhost:8000';
-const PROMPT_VERSION = 'v2'; // Bump to invalidate caches
+const PROMPT_VERSION = 'v3'; // Bump to invalidate caches
 const MAX_RETRIES = 3;
 
 // Map frontend document types to AI expected types

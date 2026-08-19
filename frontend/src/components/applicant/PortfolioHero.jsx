@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Plus, CheckCircle2, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, CheckCircle2, FileText, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { formatINRCompact } from '../../lib/loanMath';
 import { ROUTES } from '../../constants/routes';
 
@@ -7,7 +7,7 @@ const RADIUS = 84;
 const CENTER = 100;
 const ARC_LENGTH = Math.PI * RADIUS;
 
-function Gauge({ percent }) {
+function Gauge({ percent, color = '#10B981', ariaLabel }) {
   const clamped = Math.max(0, Math.min(100, Number(percent) || 0));
   const filled = (clamped / 100) * ARC_LENGTH;
   const angle = Math.PI * (1 - clamped / 100);
@@ -20,23 +20,154 @@ function Gauge({ percent }) {
       viewBox="0 0 200 116"
       className="w-full"
       role="img"
-      aria-label={`Document readiness ${clamped} percent`}
+      aria-label={ariaLabel || `${clamped} percent`}
     >
       <path d={arc} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="12" strokeLinecap="round" />
       <path
         d={arc}
         fill="none"
-        stroke="#10B981"
+        stroke={color}
         strokeWidth="12"
         strokeLinecap="round"
         strokeDasharray={`${filled} ${ARC_LENGTH}`}
       />
-      {clamped > 0 && <circle cx={knobX} cy={knobY} r="7" fill="#10B981" stroke="#0A192F" strokeWidth="3" />}
+      {clamped > 0 && <circle cx={knobX} cy={knobY} r="7" fill={color} stroke="#0A192F" strokeWidth="3" />}
     </svg>
   );
 }
 
-export default function PortfolioHero({ summary = null, readiness = null, latest = null }) {
+// Verification score bands drive the dial colour and copy so the number reads
+// the same way everywhere: strong (green) / moderate (amber) / weak (red).
+const BAND_COLOR = { strong: '#10B981', moderate: '#F59E0B', weak: '#EF4444' };
+const BAND_TEXT = { strong: 'text-emerald-400', moderate: 'text-amber-400', weak: 'text-red-400' };
+const BAND_LABEL = { strong: 'Strong', moderate: 'Moderate', weak: 'Needs review' };
+const RISK_BADGE = {
+  LOW: 'bg-emerald-500/15 text-emerald-300',
+  MEDIUM: 'bg-amber-500/15 text-amber-300',
+  HIGH: 'bg-red-500/15 text-red-300',
+};
+
+function VerificationCard({ verification }) {
+  const {
+    score,
+    band,
+    riskLevel,
+    checksPassed,
+    checksTotal,
+    docsUploaded,
+    docsRequired,
+    loanType,
+    bankName,
+  } = verification;
+
+  const color = BAND_COLOR[band] || BAND_COLOR.moderate;
+  const subtitle = [loanType ? `${loanType} loan` : null, bankName].filter(Boolean).join(' · ');
+
+  return (
+    <>
+      <div className="flex items-center gap-1.5">
+        <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+        <p className="text-[13px] font-semibold text-white">AI Verification</p>
+      </div>
+      <p className="text-[11px] text-slate-400 mt-0.5 capitalize truncate">
+        {subtitle || 'Cross-document consistency'}
+      </p>
+
+      {/* Score sits inside the arc so the dial reads as a single unit. */}
+      <div className="relative max-w-[148px] mx-auto mt-1">
+        <Gauge percent={score} color={color} ariaLabel={`Verification score ${score} of 100`} />
+        <p className="absolute inset-x-0 bottom-1 text-center leading-none">
+          <span className="text-[24px] font-semibold tabular-nums text-white">{score}</span>
+          <span className="text-[11px] text-slate-400"> /100</span>
+        </p>
+      </div>
+
+      <div className="flex items-center justify-center gap-2 -mt-0.5">
+        <span className={`text-[11px] font-medium ${BAND_TEXT[band] || 'text-slate-300'}`}>
+          {BAND_LABEL[band] || 'Verified'}
+        </span>
+        {riskLevel && (
+          <span
+            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+              RISK_BADGE[riskLevel] || 'bg-white/10 text-slate-300'
+            }`}
+          >
+            {riskLevel} RISK
+          </span>
+        )}
+      </div>
+
+      <div className="mt-2.5 pt-2.5 border-t border-white/10 space-y-1.5 text-[11px]">
+        <div className="flex items-center justify-between">
+          <span className="text-slate-400">Consistency checks</span>
+          <span className="text-white tabular-nums font-medium">
+            {checksTotal > 0 ? `${checksPassed} / ${checksTotal} passed` : 'Pending'}
+          </span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-slate-400">Documents</span>
+          <span className="text-white tabular-nums font-medium">
+            {docsRequired > 0 ? `${docsUploaded} / ${docsRequired} uploaded` : `${docsUploaded} uploaded`}
+          </span>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ReadinessCard({ total, percent, required, uploadedCount, missingCount }) {
+  // A 0% gauge would read as a bad score, so an empty state is shown instead.
+  if (required === 0) {
+    return (
+      <div className="flex items-center gap-3">
+        <span className="w-10 h-10 rounded-lg bg-white/5 grid place-items-center shrink-0">
+          <FileText className="w-[18px] h-[18px] text-slate-400" aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-white">
+            {total === 0 ? 'No documents yet' : 'Nothing to upload'}
+          </p>
+          <p className="text-[11px] text-slate-400 mt-0.5">
+            {total === 0
+              ? 'Verification appears once you start an application.'
+              : 'AI verification runs once your documents are in.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <p className="text-[13px] font-semibold text-white">Document Readiness</p>
+      <p className="text-[11px] text-slate-400 mt-0.5">AI verification runs after submission</p>
+
+      <div className="relative max-w-[148px] mx-auto mt-1">
+        <Gauge percent={percent} ariaLabel={`Document readiness ${percent} percent`} />
+        <p className="absolute inset-x-0 bottom-0.5 text-center text-[22px] font-semibold tabular-nums text-white leading-none">
+          {percent}%
+        </p>
+      </div>
+
+      <p className="text-[11px] text-slate-400 text-center mt-1">
+        {uploadedCount} of {required} documents uploaded
+      </p>
+
+      {missingCount > 0 ? (
+        <p className="text-[11px] text-amber-400 mt-1.5 text-center">
+          {missingCount} document{missingCount === 1 ? '' : 's'} still required
+        </p>
+      ) : percent === 100 ? (
+        <p className="text-[11px] text-emerald-400 mt-1.5 flex items-center justify-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+          All documents uploaded
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+export default function PortfolioHero({ summary = null, readiness = null, latest = null, verification = null }) {
   const total = summary?.total ?? 0;
   const active = summary?.active ?? 0;
   const approved = summary?.approved ?? 0;
@@ -127,64 +258,29 @@ export default function PortfolioHero({ summary = null, readiness = null, latest
                 New Application
               </Link>
               {actionRequired > 0 && (
-                <a
-                  href="#action-required"
+                <Link
+                  to={ROUTES.ACTION_REQUIRED}
                   className="inline-flex items-center gap-1.5 bg-white/10 hover:bg-white/15 text-white border border-white/10 text-[13px] font-medium rounded-lg px-3.5 py-2 transition-colors"
                 >
                   <AlertTriangle className="w-4 h-4" aria-hidden="true" />
                   Resolve {actionRequired} {actionRequired === 1 ? 'issue' : 'issues'}
-                </a>
+                </Link>
               )}
             </div>
           </div>
         </div>
 
         <div className="bg-navy-800 border border-white/5 rounded-xl p-4 w-full lg:w-[258px]">
-          {/* A 0% gauge would read as a bad score, so an empty state is shown instead. */}
-          {required === 0 ? (
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-lg bg-white/5 grid place-items-center shrink-0">
-                <FileText className="w-[18px] h-[18px] text-slate-400" aria-hidden="true" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-white">
-                  {total === 0 ? 'No documents yet' : 'Nothing to upload'}
-                </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {total === 0
-                    ? 'Readiness appears once you start an application.'
-                    : 'Tracking starts at verification.'}
-                </p>
-              </div>
-            </div>
+          {verification ? (
+            <VerificationCard verification={verification} />
           ) : (
-            <>
-              <p className="text-[13px] font-semibold text-white">Document Readiness</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">Across active applications</p>
-
-              {/* The percentage sits inside the arc so the dial reads as one unit. */}
-              <div className="relative max-w-[148px] mx-auto mt-1">
-                <Gauge percent={percent} />
-                <p className="absolute inset-x-0 bottom-0.5 text-center text-[22px] font-semibold tabular-nums text-white leading-none">
-                  {percent}%
-                </p>
-              </div>
-
-              <p className="text-[11px] text-slate-400 text-center mt-1">
-                {uploadedCount} of {required} documents uploaded
-              </p>
-
-              {missingCount > 0 ? (
-                <p className="text-[11px] text-amber-400 mt-1.5 text-center">
-                  {missingCount} document{missingCount === 1 ? '' : 's'} still required
-                </p>
-              ) : percent === 100 ? (
-                <p className="text-[11px] text-emerald-400 mt-1.5 flex items-center justify-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
-                  All documents uploaded
-                </p>
-              ) : null}
-            </>
+            <ReadinessCard
+              total={total}
+              percent={percent}
+              required={required}
+              uploadedCount={uploadedCount}
+              missingCount={missingCount}
+            />
           )}
         </div>
       </div>

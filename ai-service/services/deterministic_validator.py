@@ -428,6 +428,18 @@ def run_deterministic_validation(
         salary_credits = bank_stmt.get("salary_credits") or []
         credits_amounts = [parse_numeric(c.get("amount")) for c in salary_credits if parse_numeric(c.get("amount")) > 0]
 
+        # Fallback: Check sample_transactions or generic transactions if salary_credits was not isolated
+        if not credits_amounts:
+            all_txns = (bank_stmt.get("sample_transactions") or []) + (bank_stmt.get("transactions") or [])
+            salary_keywords = ("salary", "sal/", "sal-", "payroll", "neft cr", "ach cr", "salary credit")
+            for txn in all_txns:
+                desc = (txn.get("description") or "").lower()
+                ttype = (txn.get("transaction_type") or "").upper()
+                amt = parse_numeric(txn.get("amount"))
+                if amt > 0 and (ttype == "CREDIT" or any(kw in desc for kw in salary_keywords)):
+                    if any(kw in desc for kw in salary_keywords) or (abs(amt - (slip_net or declared_income)) / (slip_net or declared_income) <= 0.35):
+                        credits_amounts.append(amt)
+
         if credits_amounts:
             avg_bank_salary = sum(credits_amounts) / len(credits_amounts)
             baseline = slip_net if slip_net > 0 else declared_income

@@ -9,7 +9,6 @@ import ApplicationsPanel from '../components/applicant/ApplicationsPanel';
 import LoanJourney from '../components/applicant/LoanJourney';
 import RecommendedOffers from '../components/applicant/RecommendedOffers';
 import UpdatesPanel from '../components/applicant/UpdatesPanel';
-import ActionRequiredPanel from '../components/applicant/ActionRequiredPanel';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { applicationService } from '../services/applicationService';
@@ -21,6 +20,8 @@ import {
   rateComparison,
   getLoanTypeDetail,
   isActive,
+  docReadiness,
+  verificationSnapshot,
 } from '../lib/dashboardData';
 
 export default function ApplicantPortal() {
@@ -120,6 +121,23 @@ export default function ApplicantPortal() {
     : 0;
 
   const estimate = useMemo(() => emiEstimate(focusApp), [focusApp]);
+
+  // AI verification scorecard for the hero, built from the focus application's
+  // real ValidationResult plus its document counts. null until it's verified.
+  const heroVerification = useMemo(() => {
+    const v = verificationSnapshot(focusApp);
+    if (!v) return null;
+    const dr = docReadiness(focusApp);
+    return {
+      ...v,
+      docsUploaded: dr.uploadedCount,
+      docsRequired: dr.required,
+      docsApproved: dr.approved,
+      loanType: focusApp?.loanType || null,
+      bankName: focusApp?.bankName || null,
+    };
+  }, [focusApp]);
+
   const appliedTypes = useMemo(
     () => [...new Set(applications.map((app) => app.loanType).filter(Boolean))],
     [applications]
@@ -157,12 +175,15 @@ export default function ApplicantPortal() {
       actionRequiredCount={summary.actionRequired}
     >
       <div className="space-y-5">
-        <PortfolioHero summary={summary} readiness={readiness} latest={summary.latest} />
+        <PortfolioHero
+          summary={summary}
+          readiness={readiness}
+          latest={summary.latest}
+          verification={heroVerification}
+        />
 
         <div className="grid xl:grid-cols-[1fr_360px] gap-5 items-start">
           <div className="space-y-5 min-w-0">
-            <ActionRequiredPanel />
-
             <ApplicationsPanel
               applications={applications}
               searchTerm={searchTerm}

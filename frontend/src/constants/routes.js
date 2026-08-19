@@ -4,6 +4,7 @@ export const ROUTES = {
   REGISTER: '/register',
   APPLICANT: '/applicant',
   APPLY: '/applicant/apply',
+  ACTION_REQUIRED: '/applicant/action-required',
   OFFICER: '/officer',
   OFFICER_APPLICATIONS: '/officer/applications',
   officerApplication: (id) => `/officer/applications/${id}`,

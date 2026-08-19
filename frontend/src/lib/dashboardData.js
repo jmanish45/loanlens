@@ -293,6 +293,29 @@ export function emiEstimate(application) {
   return { ...breakdown, ratePct, rateSource };
 }
 
+/**
+ * Applicant-facing view of the AI verification result for one application.
+ * Reads the backend `verification` summary attached in getUserApplications.
+ * null when the application has not been verified yet.
+ */
+export function verificationSnapshot(application) {
+  const v = application?.verification;
+  if (!v || typeof v.score !== 'number' || !Number.isFinite(v.score)) return null;
+
+  const score = Math.max(0, Math.min(100, Math.round(v.score)));
+  const band = score >= 75 ? 'strong' : score >= 50 ? 'moderate' : 'weak';
+
+  return {
+    score,
+    band,
+    riskLevel: v.riskLevel || null,
+    status: v.status || null,
+    checksTotal: Number.isFinite(v.checksTotal) ? v.checksTotal : 0,
+    checksPassed: Number.isFinite(v.checksPassed) ? v.checksPassed : 0,
+    checksFlagged: Number.isFinite(v.checksFlagged) ? v.checksFlagged : 0,
+    checksWarnings: Number.isFinite(v.checksWarnings) ? v.checksWarnings : 0,
+  };
+}
 /** Partner banks sorted by advertised starting rate, lowest first. */
 export function rateComparison() {
   return AVAILABLE_BANKS.map((b) => ({

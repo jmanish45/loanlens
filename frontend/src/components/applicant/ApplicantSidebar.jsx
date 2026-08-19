@@ -32,7 +32,7 @@ function NavContents({ actionRequiredCount, onNavigate }) {
       key: 'action',
       label: t('action_required'),
       icon: AlertTriangle,
-      to: `${ROUTES.APPLICANT}#action-required`,
+      to: ROUTES.ACTION_REQUIRED,
       badged: true,
     },
   ];
@@ -40,9 +40,11 @@ function NavContents({ actionRequiredCount, onNavigate }) {
   const activeKey =
     location.pathname === ROUTES.APPLY
       ? 'apply'
-      : location.pathname === ROUTES.APPLICANT
-        ? 'dashboard'
-        : null;
+      : location.pathname === ROUTES.ACTION_REQUIRED
+        ? 'action'
+        : location.pathname === ROUTES.APPLICANT
+          ? 'dashboard'
+          : null;
 
   const base =
     'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors';

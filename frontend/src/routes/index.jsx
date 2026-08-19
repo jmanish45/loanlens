@@ -4,6 +4,7 @@ import Login from '../pages/Login';
 import Register from '../pages/Register';
 import ApplicantPortal from '../pages/ApplicantPortal';
 import ApplyLoan from '../pages/ApplyLoan';
+import ActionRequiredPage from '../pages/ActionRequiredPage';
 import OfficerLayout from '../layouts/OfficerLayout';
 import RoleRoute from '../components/common/RoleRoute';
 import OfficerDashboard from '../pages/officer/Dashboard';
@@ -22,6 +23,7 @@ export default function AppRoutes() {
       <Route element={<RoleRoute allowedRoles={['applicant']} />}>
         <Route path="/applicant" element={<ApplicantPortal />} />
         <Route path="/applicant/apply" element={<ApplyLoan />} />
+        <Route path="/applicant/action-required" element={<ActionRequiredPage />} />
       </Route>
 
       {/* Officer routes */}

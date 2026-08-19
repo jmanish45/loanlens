@@ -83,9 +83,12 @@ Rules:
 Read the raw text extracted from a bank statement and extract structured data.
 
 Rules:
-- Extract account holder name, bank name, account number, IFSC code, statement period, opening balance, closing balance, total credits/debits, and sample transactions.
+- Extract account holder name, bank name, branch, account number, IFSC code, statement period, opening balance, closing balance, total credits, total debits, and average balance.
+- Identify all recurring salary/payroll/income credit transactions (e.g. descriptions mentioning SALARY, SAL, PAYROLL, NEFT CR, company deposit) and place them in the `salary_credits` list with {date, description, amount, transaction_type: "CREDIT", balance}.
+- Identify recurring loan EMI debit transactions and place them in `emi_debits` with {date, description, amount, transaction_type: "DEBIT", balance}.
+- Extract sample regular transactions in `sample_transactions`.
 - Strip currency symbols and commas from amounts.
-- Set missing fields to null.
+- Set missing fields to null or empty list.
 - Never invent data not present in the document.
 """,
     "FORM_16": """You are a document-extraction assistant for Form 16 (TDS certificate from employer).

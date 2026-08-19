@@ -1,8 +1,29 @@
 const LoanApplication = require('../models/LoanApplication');
 const Document = require('../models/Document');
+const ValidationResult = require('../models/ValidationResult');
 const ApiError = require('../utils/ApiError');
 const { logActivity } = require('../utils/activityLogger');
 const aiService = require('./aiService');
+
+/**
+ * Applicant-safe projection of a ValidationResult: the headline score, risk
+ * band, status and check tallies only. Deliberately omits check messages,
+ * findings, evidence and the internal recommendedAction — those are for the
+ * officer console, not the applicant dashboard.
+ */
+const summarizeVerification = (v) => {
+  const checks = Array.isArray(v.checks) ? v.checks : [];
+  return {
+    score: typeof v.verificationScore === 'number' ? v.verificationScore : null,
+    riskLevel: v.riskLevel || null,
+    status: v.status || null,
+    checksTotal: checks.length,
+    checksPassed: checks.filter((c) => c.status === 'PASSED').length,
+    checksFlagged: checks.filter((c) => c.status === 'FLAGGED').length,
+    checksWarnings: checks.filter((c) => c.status === 'WARNING').length,
+    validatedAt: v.validatedAt || null,
+  };
+};
 
 const createApplication = async (data, userId) => {
   const application = await LoanApplication.create({
@@ -28,7 +49,27 @@ const createApplication = async (data, userId) => {
 };
 
 const getUserApplications = async (userId) => {
-  return await LoanApplication.find({ applicant: userId }).sort({ createdAt: -1 }).populate('documents');
+  const applications = await LoanApplication.find({ applicant: userId })
+    .sort({ createdAt: -1 })
+    .populate('documents');
+
+  if (applications.length === 0) return [];
+
+  // Attach the AI verification summary (one ValidationResult per application).
+  const validations = await ValidationResult.find({
+    application: { $in: applications.map((a) => a._id) },
+  })
+    .select('application status riskLevel verificationScore checks validatedAt')
+    .lean();
+
+  const byApp = new Map(validations.map((v) => [String(v.application), v]));
+
+  return applications.map((app) => {
+    const obj = app.toJSON();
+    const v = byApp.get(String(app._id));
+    obj.verification = v ? summarizeVerification(v) : null;
+    return obj;
+  });
 };
 
 const getApplicationByIdAndUser = async (id, userId) => {
