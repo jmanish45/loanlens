@@ -11,6 +11,7 @@ import StatusBadge from '../../components/common/StatusBadge';
 import Button from '../../components/common/Button';
 import VerificationTab from '../../components/officer/VerificationTab';
 import LoanAssistantChat from '../../components/officer/LoanAssistantChat';
+import OfficerStatusActionHub from '../../components/officer/OfficerStatusActionHub';
 import { officerService } from '../../services/officerService';
 import { getDocumentRequirements } from '../../constants/mockData';
 import { useToast } from '../../context/ToastContext';
@@ -309,28 +310,12 @@ export default function ApplicationDetails() {
             {app.applicant?.name} • Created {formatShortDate(app.createdAt)}
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <StatusBadge status={app.status} />
-          <select
-            disabled={updating}
-            value={app.status}
-            onChange={(e) => handleStatusChange(e.target.value)}
-            className="text-sm border border-cream-300 rounded-lg py-2 px-3 bg-white focus:ring-2 focus:ring-accent-500 focus:border-accent-500"
-          >
-            {STATUS_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-          <button
-            onClick={handleDeleteApplication}
-            disabled={updating}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors border border-red-200"
-            title="Delete Application"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Delete</span>
-          </button>
-        </div>
+        <OfficerStatusActionHub
+          currentStatus={app.status}
+          onStatusChange={handleStatusChange}
+          onDelete={handleDeleteApplication}
+          updating={updating}
+        />
       </div>
 
       {/* Tabs */}
