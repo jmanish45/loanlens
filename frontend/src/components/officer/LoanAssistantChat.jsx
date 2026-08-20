@@ -118,7 +118,7 @@ export default function LoanAssistantChat({ application, onNoteAdded }) {
           verdict: 'INFORMATIONAL',
           confidence: 0.98,
           confidenceLevel: 'HIGH',
-          answer: `### 👋 Welcome to LoanLens AI Officer Assistant\n\nI am your **Hybrid RAG Credit Underwriting Copilot**. I analyze **${application.applicant?.name || 'this applicant'}'s** extracted financial data from MongoDB and cross-reference it with official **HDFC Bank lending policies** and risk guidelines.\n\nAsk any question regarding loan eligibility, FOIR calculations, policy rules, or flag root causes below.`,
+          answer: `### 👋 Welcome to LoanSight AI Officer Assistant\n\nI am your **Hybrid RAG Credit Underwriting Copilot**. I analyze **${application.applicant?.name || 'this applicant'}'s** extracted financial data from MongoDB and cross-reference it with official **HDFC Bank lending policies** and risk guidelines.\n\nAsk any question regarding loan eligibility, FOIR calculations, policy rules, or flag root causes below.`,
           applicantDataSources: [
             { label: 'Applicant Name', value: application.applicant?.name || 'Applicant', sourceDocument: 'Application Form', verified: true },
             { label: 'Requested Amount', value: formatINR(application.requestedAmount), sourceDocument: 'Application Form', verified: true },
@@ -277,7 +277,7 @@ export default function LoanAssistantChat({ application, onNoteAdded }) {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-white tracking-wide">
-                LoanLens AI Underwriting Assistant
+                LoanSight AI Underwriting Assistant
               </h2>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
                 <Sparkles className="w-2.5 h-2.5" /> Hybrid RAG
@@ -723,7 +723,7 @@ export default function LoanAssistantChat({ application, onNoteAdded }) {
           </button>
         </form>
         <p className="text-[10px] text-slate-500 mt-1.5 text-center">
-          LoanLens AI grounds every response with explicit applicant records and bank policies without fabricating missing data.
+          LoanSight AI grounds every response with explicit applicant records and bank policies without fabricating missing data.
         </p>
       </div>
 

@@ -349,7 +349,7 @@ export default function Register() {
 
       {/* Footer */}
       <footer className="relative z-10 w-full max-w-7xl mx-auto px-6 py-4 text-center text-xs text-slate-500 border-t border-slate-800/50">
-        LoanLens AI Underwriting Platform © {new Date().getFullYear()}. Secure digital onboarding.
+        LoanSight AI Underwriting Platform © {new Date().getFullYear()}. Secure digital onboarding.
       </footer>
     </div>
   );

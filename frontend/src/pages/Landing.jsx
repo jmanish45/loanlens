@@ -143,7 +143,7 @@ export default function Landing() {
             <p className="text-xs font-semibold uppercase tracking-wider text-charcoal-400 mb-3">
               Process
             </p>
-            <h2 className="text-charcoal-900 text-balance">How LoanLens Works</h2>
+            <h2 className="text-charcoal-900 text-balance">How LoanSight Works</h2>
             <p className="mt-4 text-charcoal-500 max-w-2xl mx-auto">
               A streamlined journey from application to decision, powered by intelligent document analysis.
             </p>
@@ -205,7 +205,7 @@ export default function Landing() {
                 Secure by design. Explainable by principle.
               </h2>
               <p className="mt-4 text-charcoal-500 leading-relaxed">
-                Every decision is auditable. Every analysis is traceable. LoanLens AI is built on the
+                Every decision is auditable. Every analysis is traceable. LoanSight AI is built on the
                 principles of transparency, security, and responsible lending.
               </p>
             </div>

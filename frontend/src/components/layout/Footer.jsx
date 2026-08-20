@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import Container from './Container';
+import BrandLogo from '../common/BrandLogo';
 import { ROUTES } from '../../constants/routes';
 
 const FOOTER_LINKS = {
@@ -28,15 +29,7 @@ export default function Footer() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
             {/* Brand Column */}
             <div className="col-span-2 md:col-span-1">
-              <Link
-                to={ROUTES.HOME}
-                className="flex items-center gap-2 font-semibold text-lg text-charcoal-900"
-              >
-                <span className="flex items-center justify-center w-7 h-7 rounded-md bg-charcoal-900 text-cream-50 text-xs font-bold">
-                  LI
-                </span>
-                LoanLens<span className="text-charcoal-400 font-normal ml-1">AI</span>
-              </Link>
+              <BrandLogo to={ROUTES.HOME} variant="dark" size="sm" />
               <p className="mt-3 text-sm text-charcoal-500 leading-relaxed max-w-xs">
                 AI-powered document intelligence for faster, explainable loan processing.
               </p>
@@ -64,7 +57,7 @@ export default function Footer() {
 
           <div className="mt-14 pt-6 border-t border-cream-300/60 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-xs text-charcoal-400">
-              © {new Date().getFullYear()} LoanLens AI. All rights reserved.
+              © {new Date().getFullYear()} LoanSight AI. All rights reserved.
             </p>
             <p className="text-xs text-charcoal-400">
               Built for intelligent lending.

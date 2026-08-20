@@ -11,6 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import BrandLogo from '../common/BrandLogo';
 import { useLanguage } from '../../context/LanguageContext';
 import { ROUTES } from '../../constants/routes';
 
@@ -54,13 +55,8 @@ function NavContents({ actionRequiredCount, onNavigate }) {
   return (
     <>
       <div className="flex items-center gap-3 h-16 px-5 border-b border-white/5 shrink-0">
-        <span className="w-9 h-9 rounded-lg bg-emerald-500 grid place-items-center shrink-0">
-          <Aperture className="w-5 h-5 text-navy-900" aria-hidden="true" />
-        </span>
-        <span className="min-w-0">
-          <span className="block text-[15px] font-semibold text-white leading-tight">LoanLens</span>
-          <span className="block text-[11px] text-slate-400 truncate">See the right loan, clearly.</span>
-        </span>
+        <BrandLogo to={null} variant="light" size="sm" showBadge={false} />
+        <span className="block text-[11px] text-slate-400 truncate">See the right loan, clearly.</span>
       </div>
 
       <nav aria-label="Applicant navigation" className="px-3 pt-5">

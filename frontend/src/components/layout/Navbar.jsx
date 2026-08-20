@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import Container from './Container';
 import Button from '../common/Button';
+import BrandLogo from '../common/BrandLogo';
 import LanguageSelector from '../common/LanguageSelector';
 import { ROUTES } from '../../constants/routes';
 import { useAuth } from '../../context/AuthContext';
@@ -43,15 +44,7 @@ export default function Navbar() {
       <Container>
         <div className="flex items-center justify-between h-16 md:h-18">
           {/* Logo */}
-          <Link
-            to={ROUTES.HOME}
-            className="flex items-center gap-2 font-semibold text-lg text-charcoal-900"
-          >
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-charcoal-900 text-cream-50 text-xs font-bold">
-              LI
-            </span>
-            <span>LoanLens<span className="text-charcoal-400 font-normal ml-1">AI</span></span>
-          </Link>
+          <BrandLogo to={ROUTES.HOME} variant="dark" size="md" />
 
           {/* Desktop Links */}
           {isLanding && (

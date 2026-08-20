@@ -7,7 +7,7 @@ export const LANGUAGES = [
 export const TRANSLATIONS = {
   en: {
     // Brand & Common
-    brand_name: 'LoanLens AI',
+    brand_name: 'LoanSight AI',
     brand_tagline: 'Credit Intelligence & Underwriting',
     platform_badge: 'AI-POWERED LOAN PLATFORM',
     for_people: 'FOR CREDIT & UNDERWRITING INTELLIGENCE',
@@ -167,7 +167,7 @@ export const TRANSLATIONS = {
     reprocess_ai: 'Reprocess AI Analysis',
 
     // AI Loan Assistant
-    ai_assistant_title: 'LoanLens AI Underwriting Assistant',
+    ai_assistant_title: 'LoanSight AI Underwriting Assistant',
     ai_assistant_sub: 'Grounded in MongoDB Applicant Snapshot & Bank Policy Vector Store',
     browse_policies: 'Browse Bank Policies',
     quick_queries: 'Quick Underwriting Queries',
@@ -195,7 +195,7 @@ export const TRANSLATIONS = {
 
   hi: {
     // Brand & Common
-    brand_name: 'लोनलेंस एआई',
+    brand_name: 'लोनसाइट एआई',
     brand_tagline: 'क्रेडिट इंटेलिजेंस और अंडरराइटिंग',
     platform_badge: 'एआई-संचालित ऋण मंच',
     for_people: 'ऋण और अंडरराइटिंग इंटेलिजेंस',
@@ -355,7 +355,7 @@ export const TRANSLATIONS = {
     reprocess_ai: 'एआई विश्लेषण पुनः चलाएं',
 
     // AI Loan Assistant
-    ai_assistant_title: 'लोनलेंस एआई अंडरराइटिंग सहायक',
+    ai_assistant_title: 'लोनसाइट एआई अंडरराइटिंग सहायक',
     ai_assistant_sub: 'MongoDB आवेदक डेटा और बैंक नीति वेक्टर स्टोर पर आधारित',
     browse_policies: 'बैंक नीतियां देखें',
     quick_queries: 'त्वरित अंडरराइटिंग प्रश्न',
@@ -383,7 +383,7 @@ export const TRANSLATIONS = {
 
   mr: {
     // Brand & Common
-    brand_name: 'लोनलेंस एआय',
+    brand_name: 'लोनसाइट एआय',
     brand_tagline: 'क्रेडिट इंटेलिजन्स आणि अंडररायटिंग',
     platform_badge: 'एआय-सक्षम कर्ज प्लॅटफॉर्म',
     for_people: 'कर्ज आणि अंडररायटिंग इंटेलिजन्स',
@@ -543,7 +543,7 @@ export const TRANSLATIONS = {
     reprocess_ai: 'एआय विश्लेषण पुन्हा करा',
 
     // AI Loan Assistant
-    ai_assistant_title: 'लोनलेंस एआय अंडररायटिंग सहाय्यक',
+    ai_assistant_title: 'लोनसाइट एआय अंडररायटिंग सहाय्यक',
     ai_assistant_sub: 'MongoDB अर्जदार डेटा व बँक पॉलिसी वेक्टर स्टोअरवर आधारित',
     browse_policies: 'बँक पॉलिसी पहा',
     quick_queries: 'जलद अंडररायटिंग प्रश्न',

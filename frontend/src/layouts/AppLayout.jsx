@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Home, FileText, LogOut } from 'lucide-react';
 import Container from '../components/layout/Container';
+import BrandLogo from '../components/common/BrandLogo';
 import { ROUTES } from '../constants/routes';
 import { useAuth } from '../context/AuthContext';
 
@@ -19,15 +20,7 @@ export default function AppLayout() {
       <header className="bg-white border-b border-cream-300/60 sticky top-0 z-40">
         <Container>
           <div className="flex items-center justify-between h-14">
-            <Link
-              to={ROUTES.HOME}
-              className="flex items-center gap-2 font-semibold text-base text-charcoal-900"
-            >
-              <span className="flex items-center justify-center w-7 h-7 rounded-md bg-charcoal-900 text-cream-50 text-xs font-bold">
-                LI
-              </span>
-              LoanLens<span className="text-charcoal-400 font-normal ml-1">AI</span>
-            </Link>
+            <BrandLogo to={ROUTES.HOME} variant="dark" size="sm" />
 
             <div className="flex items-center gap-4">
               <div className="text-right hidden sm:block">
